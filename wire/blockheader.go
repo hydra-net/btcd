@@ -40,6 +40,23 @@ type BlockHeader struct {
 	Nonce uint32
 }
 
+// BlockHeaderLW defines information about a block representation in LightWallet DEX implementation
+// and is used in the block (MsgBlock) and headers (MsgHeaders) messages.
+type BlockHeaderLW struct {
+	// Version of the block.  This is not the same as the protocol version.
+	Version int32
+
+	// Hash of the previous block header in the block chain.
+	PrevBlock chainhash.Hash
+
+	// Height for the block.
+	Height uint32
+
+	// Time the block was created.  This is, unfortunately, encoded as a
+	// uint32 on the wire and therefore is limited to 2106.
+	Timestamp time.Time
+}
+
 // blockHeaderLen is a constant that represents the number of bytes for a block
 // header.
 const blockHeaderLen = 80
@@ -54,6 +71,9 @@ func (h *BlockHeader) BlockHash() chainhash.Hash {
 	_ = writeBlockHeader(buf, 0, h)
 
 	return chainhash.DoubleHashH(buf.Bytes())
+	//hs, out := x11.New(), [32]byte{}
+	//hs.Hash(buf.Bytes(), out[:])
+	//return out
 }
 
 // BtcDecode decodes r using the bitcoin protocol encoding into the receiver.
@@ -80,6 +100,15 @@ func (h *BlockHeader) Deserialize(r io.Reader) error {
 	// at protocol version 0 and the stable long-term storage format.  As
 	// a result, make use of readBlockHeader.
 	return readBlockHeader(r, 0, h)
+}
+
+// Deserialize decodes a block header from r into the receiver using a
+// LW DEX suitable format.
+func (h *BlockHeaderLW) DeserializeLW(r io.Reader) error {
+	// At the current time, there is no difference between the wire encoding
+	// at protocol version 0 and the stable long-term storage format.  As
+	// a result, make use of readBlockHeader.
+	return readLWBlockHeader(r, 0, h)
 }
 
 // Serialize encodes a block header from r into the receiver using a format
@@ -116,6 +145,12 @@ func NewBlockHeader(version int32, prevHash, merkleRootHash *chainhash.Hash,
 func readBlockHeader(r io.Reader, pver uint32, bh *BlockHeader) error {
 	return readElements(r, &bh.Version, &bh.PrevBlock, &bh.MerkleRoot,
 		(*uint32Time)(&bh.Timestamp), &bh.Bits, &bh.Nonce)
+}
+
+// readBlockHeaderLW reads a block header from r. in LW DeX format.
+func readLWBlockHeader(r io.Reader, pver uint32, bh *BlockHeaderLW) error {
+	return readElements(r, &bh.Version, &bh.PrevBlock,
+		&bh.Height, (*uint32Time)(&bh.Timestamp))
 }
 
 // writeBlockHeader writes a bitcoin block header to w.  See Serialize for
