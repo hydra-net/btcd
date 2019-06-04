@@ -147,6 +147,28 @@ func NewGetBlockCmd(hash string, verbose, verboseTx *bool) *GetBlockCmd {
 	}
 }
 
+// StartRescanCmd defines the startrescan JSON-RPC command.
+type StartRescanCmd struct {
+	Hash string
+}
+
+// NewStartRescanCmd returns a new instance which can be used to issue a
+// startrescan JSON-RPC command.
+func NewStartRescanCmd(hash string) *StartRescanCmd {
+	return &StartRescanCmd{
+		Hash: hash,
+	}
+}
+
+// AbortRescanCmd defines the rescanabort JSON-RPC command.
+type AbortRescanCmd struct {}
+
+// NewAbortRescanCmd returns a new instance which can be used to issue a
+// rescanabort JSON-RPC command.
+func NewAbortRescanCmd() *AbortRescanCmd {
+	return &AbortRescanCmd{}
+}
+
 // GetBlockChainInfoCmd defines the getblockchaininfo JSON-RPC command.
 type GetBlockChainInfoCmd struct{}
 
@@ -835,4 +857,6 @@ func init() {
 	MustRegisterCmd("verifychain", (*VerifyChainCmd)(nil), flags)
 	MustRegisterCmd("verifymessage", (*VerifyMessageCmd)(nil), flags)
 	MustRegisterCmd("verifytxoutproof", (*VerifyTxOutProofCmd)(nil), flags)
+	MustRegisterCmd("rescanstart", (*StartRescanCmd)(nil), flags)
+	MustRegisterCmd("rescanabort", (*AbortRescanCmd)(nil), flags)
 }
