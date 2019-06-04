@@ -114,6 +114,12 @@ type GetBlockChainInfoResult struct {
 	Bip9SoftForks        map[string]*Bip9SoftForkDescription `json:"bip9_softforks"`
 }
 
+
+type GetChainInfoResult struct {
+	BestBlockHash string `json:"bestblockhash"`
+	Height        int32  `json:"headers"`
+}
+
 // GetBlockTemplateResultTx models the transactions field of the
 // getblocktemplate command.
 type GetBlockTemplateResultTx struct {

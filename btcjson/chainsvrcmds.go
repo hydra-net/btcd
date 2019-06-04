@@ -156,6 +156,15 @@ func NewGetBlockChainInfoCmd() *GetBlockChainInfoCmd {
 	return &GetBlockChainInfoCmd{}
 }
 
+// GetChainInfoCmd defines the getchaininfo JSON-RPC command.
+type GetChainInfoCmd struct{}
+
+// NewGetChainInfoCmd returns a new instance which can be used to issue a
+// getblockchaininfo JSON-RPC command.
+func NewGetChainInfoCmd() *GetChainInfoCmd {
+	return &GetChainInfoCmd{}
+}
+
 // GetBlockCountCmd defines the getblockcount JSON-RPC command.
 type GetBlockCountCmd struct{}
 
@@ -787,6 +796,7 @@ func init() {
 	MustRegisterCmd("getblockchaininfo", (*GetBlockChainInfoCmd)(nil), flags)
 	MustRegisterCmd("getblockcount", (*GetBlockCountCmd)(nil), flags)
 	MustRegisterCmd("getblockhash", (*GetBlockHashCmd)(nil), flags)
+	MustRegisterCmd("getchaininfo", (*GetChainInfoCmd)(nil), flags)
 	MustRegisterCmd("getblockheader", (*GetBlockHeaderCmd)(nil), flags)
 	MustRegisterCmd("getblocktemplate", (*GetBlockTemplateCmd)(nil), flags)
 	MustRegisterCmd("getcfilter", (*GetCFilterCmd)(nil), flags)

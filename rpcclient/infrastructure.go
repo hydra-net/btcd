@@ -19,16 +19,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	tcp "net/rpc"
 	"sync"
 	"sync/atomic"
 	"time"
-	"reflect"
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/go-socks/socks"
 	"github.com/btcsuite/websocket"
-	"github.com/ugorji/go/codec"
 )
 
 var (
@@ -131,9 +128,6 @@ type Client struct {
 	// httpClient is the underlying HTTP client to use when running in HTTP
 	// POST mode.
 	httpClient *http.Client
-
-	// tcpCLient is the underlying TCP client to use when running in TCP MSGPack mode.
-	tcpClient  *tcp.Client
 
 	// mtx is a mutex to protect access to connection related fields.
 	mtx sync.Mutex
@@ -832,24 +826,6 @@ func (c *Client) sendPost(jReq *jsonRequest) {
 	c.sendPostRequest(httpReq, jReq)
 }
 
-func (c *Client) sendTCP(jReq *jsonRequest) {
-	// Generate a request to the configured RPC server.
-
-	var str string
-	err := c.tcpClient.Call(jReq.method, 0, &str)
-	if err != nil {
-		jReq.responseChan <- &response{result: nil, err: err}
-		return
-	}
-
-	log.Tracef("Sending command [%s] with id %d", jReq.method, jReq.id)
-	err = c.tcpClient.Call(jReq.method, jReq.cmd, &str)
-	if err != nil {
-		jReq.responseChan <- &response{result: nil, err: err}
-		return
-	}
-}
-
 // sendRequest sends the passed json request to the associated server using the
 // provided response channel for the reply.  It handles both websocket and HTTP
 // POST mode depending on the configuration of the client.
@@ -860,11 +836,6 @@ func (c *Client) sendRequest(jReq *jsonRequest) {
 	// the command is issued via the asynchronous websocket channels.
 	if c.config.HTTPPostMode {
 		c.sendPost(jReq)
-		return
-	}
-	if c.config.MSGPackMode {
-		//
-		c.sendTCP(jReq)
 		return
 	}
 
@@ -894,7 +865,7 @@ func (c *Client) sendRequest(jReq *jsonRequest) {
 // future.  It handles both websocket and HTTP POST mode depending on the
 // configuration of the client.
 func (c *Client) sendCmd(cmd interface{}) chan *response {
-	// Get the method associated with the command.
+	//Get the method associated with the command.
 	method, err := btcjson.CmdMethod(cmd)
 	if err != nil {
 		return newFutureError(err)
@@ -950,7 +921,7 @@ func (c *Client) Disconnected() bool {
 //
 // This function is safe for concurrent access.
 func (c *Client) doDisconnect() bool {
-	if c.config.HTTPPostMode || c.config.MSGPackMode {
+	if c.config.HTTPPostMode {
 		return false
 	}
 
@@ -1053,7 +1024,7 @@ func (c *Client) start() {
 
 	// Start the I/O processing handlers depending on whether the client is
 	// in HTTP POST mode or the default websocket mode.
-	if c.config.HTTPPostMode || c.config.MSGPackMode {
+	if c.config.HTTPPostMode {
 		c.wg.Add(1)
 		go c.sendPostHandler()
 	} else {
@@ -1137,35 +1108,9 @@ type ConnConfig struct {
 	// flag can be set to true to use basic HTTP POST requests instead.
 	HTTPPostMode bool
 
-	// MSGPackMode instruct the client to make rpc calls using msgpack headers
-	MSGPackMode bool
-
 	// EnableBCInfoHacks is an option provided to enable compatibility hacks
 	// when connecting to blockchain.info RPC server
 	EnableBCInfoHacks bool
-}
-
-func newTCPClient(config *ConnConfig) (*tcp.Client, error) {
-	// create and configure MSGPack handle
-	var msgPackHandle codec.MsgpackHandle
-
-	var bytesExt codec.BytesExt
-
-	msgPackHandle.MapType = reflect.TypeOf(map[string]interface{}(nil))
-
-	// define functions and enable Time support for tag 1
-	msgPackHandle.SetBytesExt(reflect.TypeOf(time.Time{}), 1, bytesExt)
-
-	var handler = &msgPackHandle
-
-	conn, err := net.Dial("tcp", config.Host)
-	if err != nil {
-		return nil, err
-	}
-	clientCodec := codec.MsgpackSpecRpc.ClientCodec(conn, handler)
-	client := tcp.NewClientWithCodec(clientCodec)
-
-	return client, nil
 }
 
 // newHTTPClient returns a new http client that is configured according to the
@@ -1280,7 +1225,6 @@ func New(config *ConnConfig, ntfnHandlers *NotificationHandlers) (*Client, error
 	// when running in HTTP POST mode.
 	var wsConn *websocket.Conn
 	var httpClient *http.Client
-	var tcpClient  *tcp.Client
 	connEstablished := make(chan struct{})
 	var start bool
 	if config.HTTPPostMode {
@@ -1289,15 +1233,6 @@ func New(config *ConnConfig, ntfnHandlers *NotificationHandlers) (*Client, error
 
 		var err error
 		httpClient, err = newHTTPClient(config)
-		if err != nil {
-			return nil, err
-		}
-	} else if config.MSGPackMode {
-		ntfnHandlers = nil
-		start = true
-
-		var err error
-		tcpClient, err = newTCPClient(config)
 		if err != nil {
 			return nil, err
 		}
@@ -1316,7 +1251,6 @@ func New(config *ConnConfig, ntfnHandlers *NotificationHandlers) (*Client, error
 		config:          config,
 		wsConn:          wsConn,
 		httpClient:      httpClient,
-		tcpClient:       tcpClient,
 		requestMap:      make(map[uint64]*list.Element),
 		requestList:     list.New(),
 		ntfnHandlers:    ntfnHandlers,
@@ -1333,7 +1267,7 @@ func New(config *ConnConfig, ntfnHandlers *NotificationHandlers) (*Client, error
 			config.Host)
 		close(connEstablished)
 		client.start()
-		if !client.config.HTTPPostMode && !client.config.MSGPackMode && !client.config.DisableAutoReconnect {
+		if !client.config.HTTPPostMode && !client.config.DisableAutoReconnect {
 			client.wg.Add(1)
 			go client.wsReconnectHandler()
 		}
@@ -1357,7 +1291,7 @@ func (c *Client) Connect(tries int) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	if c.config.HTTPPostMode || c.config.MSGPackMode {
+	if c.config.HTTPPostMode {
 		return ErrNotWebsocketClient
 	}
 	if c.wsConn != nil {
