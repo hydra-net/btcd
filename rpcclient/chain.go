@@ -159,8 +159,8 @@ func (r FutureAbortRescanResult) Receive() error {
 
 // AbortRescanAsync returns the result of the RPC call at some future time
 // by invoking the Receive function on the returned instance.
-func (c *Client) AbortRescanAsync() FutureStartRescanResult {
-	cmd := btcjson.NewAbortRescanCmd(hash)
+func (c *Client) AbortRescanAsync() FutureAbortRescanResult {
+	cmd := btcjson.NewAbortRescanCmd()
 	return c.sendCmd(cmd)
 }
 
