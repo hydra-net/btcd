@@ -9,10 +9,12 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"time"
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcwallet/wtxmgr"
 )
 
 // FutureGetBestBlockHashResult is a future promise to deliver the result of a
@@ -167,6 +169,57 @@ func (c *Client) AbortRescanAsync() FutureAbortRescanResult {
 // AbortRescan stops rescan.
 func (c *Client) AbortRescan() error {
 	return c.AbortRescanAsync().Receive()
+}
+
+// FutureGetFilterBlockResult is a future promise to deliver the result of a
+// GetFilterBlockAsync RPC invocation (or an applicable error).
+type FutureGetFilterBlockResult chan *response
+
+// GetFilterBlockResponse is used to get parse response from
+// getfilterblock rpc call.
+type GetFilterBlockResponse struct {
+	BlockHeader  wire.BlockHeader
+	SerializedTx []byte
+}
+
+// Receive waits for the response promised by the future and returns status
+// from the server.
+func (r FutureGetFilterBlockResult) Receive() (*wire.BlockHeader, *wtxmgr.TxRecord, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Unmarshal result as a string.
+	var response GetFilterBlockResponse
+	err = json.Unmarshal(res, &response)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	txRecord, err := wtxmgr.NewTxRecord(response.SerializedTx, time.Now())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &response.BlockHeader, txRecord, nil
+}
+
+// AbortRescanAsync returns the result of the RPC call at some future time
+// by invoking the Receive function on the returned instance.
+func (c *Client) GetFilterBlockAsync(blockHash *chainhash.Hash) FutureGetFilterBlockResult {
+	hash := ""
+	if blockHash != nil {
+		hash = blockHash.String()
+	}
+
+	cmd := btcjson.NewGetFilterBlockCmd(hash)
+	return c.sendCmd(cmd)
+}
+
+// GetFilterBlock returns block filter for given hash.
+func (c *Client) GetFilterBlock(hash *chainhash.Hash) (*wire.BlockHeader, *wtxmgr.TxRecord, error) {
+	return c.GetFilterBlockAsync(hash).Receive()
 }
 
 // FutureGetBlockVerboseResult is a future promise to deliver the result of a
