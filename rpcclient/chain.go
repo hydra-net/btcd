@@ -179,30 +179,39 @@ type FutureGetFilterBlockResult chan *response
 // getfilterblock rpc call.
 type GetFilterBlockResponse struct {
 	BlockHeader  wire.BlockHeader
-	SerializedTx []byte
+	//SerializedTx []string
 }
 
 // Receive waits for the response promised by the future and returns status
 // from the server.
-func (r FutureGetFilterBlockResult) Receive() (*wire.BlockHeader, *wtxmgr.TxRecord, error) {
+func (r FutureGetFilterBlockResult) Receive() ([]*wtxmgr.TxRecord, error) {
 	res, err := receiveFuture(r)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Unmarshal result as a string.
-	var response GetFilterBlockResponse
+	var response []string
 	err = json.Unmarshal(res, &response)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	txRecord, err := wtxmgr.NewTxRecord(response.SerializedTx, time.Now())
-	if err != nil {
-		return nil, nil, err
+	var result []*wtxmgr.TxRecord
+
+	for _, val := range response {
+
+		rawBytes, _ := hex.DecodeString(val)
+
+		txRecord, err := wtxmgr.NewTxRecord(rawBytes, time.Now())
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, txRecord)
 	}
 
-	return &response.BlockHeader, txRecord, nil
+	return result, nil
 }
 
 // AbortRescanAsync returns the result of the RPC call at some future time
@@ -218,7 +227,7 @@ func (c *Client) GetFilterBlockAsync(blockHash *chainhash.Hash) FutureGetFilterB
 }
 
 // GetFilterBlock returns block filter for given hash.
-func (c *Client) GetFilterBlock(hash *chainhash.Hash) (*wire.BlockHeader, *wtxmgr.TxRecord, error) {
+func (c *Client) GetFilterBlock(hash *chainhash.Hash) ([]*wtxmgr.TxRecord, error) {
 	return c.GetFilterBlockAsync(hash).Receive()
 }
 
