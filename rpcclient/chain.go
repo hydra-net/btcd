@@ -9,12 +9,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"time"
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcwallet/wtxmgr"
 )
 
 // FutureGetBestBlockHashResult is a future promise to deliver the result of a
@@ -184,7 +182,7 @@ type GetFilterBlockResponse struct {
 
 // Receive waits for the response promised by the future and returns status
 // from the server.
-func (r FutureGetFilterBlockResult) Receive() ([]*wtxmgr.TxRecord, error) {
+func (r FutureGetFilterBlockResult) Receive() ([]*wire.MsgTx, error) {
 	res, err := receiveFuture(r)
 	if err != nil {
 		return nil, err
@@ -197,18 +195,20 @@ func (r FutureGetFilterBlockResult) Receive() ([]*wtxmgr.TxRecord, error) {
 		return nil, err
 	}
 
-	var result []*wtxmgr.TxRecord
+	var result []*wire.MsgTx
 
 	for _, val := range response {
 
 		rawBytes, _ := hex.DecodeString(val)
 
-		txRecord, err := wtxmgr.NewTxRecord(rawBytes, time.Now())
+		var tx wire.MsgTx
+		err := tx.Deserialize(bytes.NewReader(rawBytes))
+
 		if err != nil {
 			return nil, err
 		}
 
-		result = append(result, txRecord)
+		result = append(result, &tx)
 	}
 
 	return result, nil
@@ -227,7 +227,7 @@ func (c *Client) GetFilterBlockAsync(blockHash *chainhash.Hash) FutureGetFilterB
 }
 
 // GetFilterBlock returns block filter for given hash.
-func (c *Client) GetFilterBlock(hash *chainhash.Hash) ([]*wtxmgr.TxRecord, error) {
+func (c *Client) GetFilterBlock(hash *chainhash.Hash) ([]*wire.MsgTx, error) {
 	return c.GetFilterBlockAsync(hash).Receive()
 }
 
