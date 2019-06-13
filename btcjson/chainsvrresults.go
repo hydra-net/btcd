@@ -47,6 +47,14 @@ type GetBlockVerboseResult struct {
 	NextHash      string        `json:"nextblockhash,omitempty"`
 }
 
+// GetRawFilterResult models the data from the getrawfilter command.
+type GetRawFilterResult struct {
+	N uint32  	  `json:"n"`
+	M uint64	  `json:"m"`
+	P uint8		  `json:"p"`
+	Bytes string  `json:"bytes"` // hex string
+}
+
 // CreateMultiSigResult models the data returned from the createmultisig
 // command.
 type CreateMultiSigResult struct {

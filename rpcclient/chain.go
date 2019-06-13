@@ -13,6 +13,7 @@ import (
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil/gcs"
 )
 
 // FutureGetBestBlockHashResult is a future promise to deliver the result of a
@@ -173,13 +174,6 @@ func (c *Client) AbortRescan() error {
 // GetFilterBlockAsync RPC invocation (or an applicable error).
 type FutureGetFilterBlockResult chan *response
 
-// GetFilterBlockResponse is used to get parse response from
-// getfilterblock rpc call.
-type GetFilterBlockResponse struct {
-	BlockHeader  wire.BlockHeader
-	//SerializedTx []string
-}
-
 // Receive waits for the response promised by the future and returns status
 // from the server.
 func (r FutureGetFilterBlockResult) Receive() ([]*wire.MsgTx, error) {
@@ -229,6 +223,59 @@ func (c *Client) GetFilterBlockAsync(blockHash *chainhash.Hash) FutureGetFilterB
 // GetFilterBlock returns block filter for given hash.
 func (c *Client) GetFilterBlock(hash *chainhash.Hash) ([]*wire.MsgTx, error) {
 	return c.GetFilterBlockAsync(hash).Receive()
+}
+
+// FutureGetRawFilterResult is a future promise to deliver the result of a
+// GetGetRawFilterAsync RPC invocation (or an applicable error).
+type FutureGetRawFilterResult chan *response
+
+// Receive waits for the response promised by the future and returns the raw
+// filter requested from the server given its hash.
+func (r FutureGetRawFilterResult) Receive() (*gcs.Filter, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal result
+	var rawFilter btcjson.GetRawFilterResult
+	err = json.Unmarshal(res, &rawFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode the serialized block hex to raw bytes.
+	bytes, err := hex.DecodeString(rawFilter.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	filter, err := gcs.FromBytes(rawFilter.N, rawFilter.P, rawFilter.M, bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return filter, nil
+}
+
+// GetRawFilterAsync returns an instance of a type that can be used to get the
+// result of the RPC at some future time by invoking the Receive function on the
+// returned instance.
+//
+// See GetRawFilter for more details.
+func (c *Client) GetRawFilterAsync(blockHash *chainhash.Hash) FutureGetRawFilterResult {
+	hash := ""
+	if blockHash != nil {
+		hash = blockHash.String()
+	}
+
+	cmd := btcjson.NewGetRawFilterCmd(hash)
+	return c.sendCmd(cmd)
+}
+
+// GetRawFilter returns a raw block from the server given its hash.
+func (c *Client) GetRawFilter(blockHash *chainhash.Hash) (*gcs.Filter, error) {
+	return c.GetRawFilterAsync(blockHash).Receive()
 }
 
 // FutureGetBlockVerboseResult is a future promise to deliver the result of a

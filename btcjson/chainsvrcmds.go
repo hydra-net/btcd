@@ -182,6 +182,20 @@ func NewGetFilterBlockCmd(hash string) *GetFilterBlockCmd {
 	}
 }
 
+// GetRawFilterCmd defines the getrawfilter JSON-RPC command.
+type GetRawFilterCmd struct {
+	Hash      string
+}
+
+// NewGetRawFilterCmd returns a new instance which can be used to issue a getrawfilter
+// JSON-RPC command.
+func NewGetRawFilterCmd(hash string) *GetRawFilterCmd {
+	return &GetRawFilterCmd{
+		Hash:      hash,
+	}
+}
+
+
 // GetBlockChainInfoCmd defines the getblockchaininfo JSON-RPC command.
 type GetBlockChainInfoCmd struct{}
 
@@ -873,4 +887,5 @@ func init() {
 	MustRegisterCmd("rescanstart", (*StartRescanCmd)(nil), flags)
 	MustRegisterCmd("rescanabort", (*AbortRescanCmd)(nil), flags)
 	MustRegisterCmd("getfilterblock", (*GetFilterBlockCmd)(nil), flags)
+	MustRegisterCmd("getrawfilter", (*GetRawFilterCmd)(nil), flags)
 }
