@@ -225,8 +225,8 @@ func (c *Client) GetFilterBlock(hash *chainhash.Hash) ([]*wire.MsgTx, error) {
 	return c.GetFilterBlockAsync(hash).Receive()
 }
 
-// FutureGetFilterBlockResult is a future promise to deliver the result of a
-// GetFilterBlockAsync RPC invocation (or an applicable error).
+// FutureGetUnspentOutputResult is a future promise to deliver the result of a
+// GetUnspentOutputAsync RPC invocation (or an applicable error).
 type FutureGetUnspentOutputResult chan *response
 
 // Receive waits for the response promised by the future and returns status
@@ -246,7 +246,7 @@ func (r FutureGetUnspentOutputResult) Receive() (*btcjson.GetUnspentOutputResult
 	return &unspentOutput, nil
 }
 
-// GetFilterBlockAsync returns the result of the RPC call at some future time
+// GetUnspentOutputAsync returns the result of the RPC call at some future time
 // by invoking the Receive function on the returned instance.
 func (c *Client) GetUnspentOutputAsync(blockHash *chainhash.Hash, index int32) FutureGetUnspentOutputResult {
 	hash := ""
