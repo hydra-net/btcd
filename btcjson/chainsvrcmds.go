@@ -195,6 +195,20 @@ func NewGetRawFilterCmd(hash string) *GetRawFilterCmd {
 	}
 }
 
+// GetUnspentOutputCmd defines the getunspentoutput JSON-RPC command.
+type GetUnspentOutputCmd struct {
+	BlockHash string
+	Index 	  int32
+}
+
+// NewGetUnspentOutputCmd returns a new instance which can be used to issue a getunspentoutput
+// JSON-RPC command.
+func NewGetUnspentOutputCmd(hash string, index int32) *GetUnspentOutputCmd {
+	return &GetUnspentOutputCmd{
+		BlockHash: hash,
+		Index:     index,
+	}
+}
 
 // GetBlockChainInfoCmd defines the getblockchaininfo JSON-RPC command.
 type GetBlockChainInfoCmd struct{}
@@ -888,4 +902,5 @@ func init() {
 	MustRegisterCmd("rescanabort", (*AbortRescanCmd)(nil), flags)
 	MustRegisterCmd("getfilterblock", (*GetFilterBlockCmd)(nil), flags)
 	MustRegisterCmd("getrawfilter", (*GetRawFilterCmd)(nil), flags)
+	MustRegisterCmd("getunspentoutput", (*GetUnspentOutputCmd)(nil), flags)
 }

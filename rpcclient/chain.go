@@ -208,7 +208,7 @@ func (r FutureGetFilterBlockResult) Receive() ([]*wire.MsgTx, error) {
 	return result, nil
 }
 
-// AbortRescanAsync returns the result of the RPC call at some future time
+// GetFilterBlockAsync returns the result of the RPC call at some future time
 // by invoking the Receive function on the returned instance.
 func (c *Client) GetFilterBlockAsync(blockHash *chainhash.Hash) FutureGetFilterBlockResult {
 	hash := ""
@@ -223,6 +223,44 @@ func (c *Client) GetFilterBlockAsync(blockHash *chainhash.Hash) FutureGetFilterB
 // GetFilterBlock returns block filter for given hash.
 func (c *Client) GetFilterBlock(hash *chainhash.Hash) ([]*wire.MsgTx, error) {
 	return c.GetFilterBlockAsync(hash).Receive()
+}
+
+// FutureGetFilterBlockResult is a future promise to deliver the result of a
+// GetFilterBlockAsync RPC invocation (or an applicable error).
+type FutureGetUnspentOutputResult chan *response
+
+// Receive waits for the response promised by the future and returns status
+// from the server.
+func (r FutureGetUnspentOutputResult) Receive() (*btcjson.GetUnspentOutputResult, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var unspentOutput btcjson.GetUnspentOutputResult
+	err = json.Unmarshal(res, &unspentOutput)
+	if err != nil {
+		return nil, err
+	}
+
+	return &unspentOutput, nil
+}
+
+// GetFilterBlockAsync returns the result of the RPC call at some future time
+// by invoking the Receive function on the returned instance.
+func (c *Client) GetUnspentOutputAsync(blockHash *chainhash.Hash, index int32) FutureGetUnspentOutputResult {
+	hash := ""
+	if blockHash != nil {
+		hash = blockHash.String()
+	}
+
+	cmd := btcjson.NewGetUnspentOutputCmd(hash, index)
+	return c.sendCmd(cmd)
+}
+
+// GetUnspentOutput returns utxo set for given hash.
+func (c *Client) GetUnspentOutput(hash *chainhash.Hash, index int32) (*btcjson.GetUnspentOutputResult, error) {
+	return c.GetUnspentOutputAsync(hash, index).Receive()
 }
 
 // FutureGetRawFilterResult is a future promise to deliver the result of a
