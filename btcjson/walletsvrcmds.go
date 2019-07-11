@@ -195,6 +195,21 @@ func NewGetLastAddressCmd(change bool) *GetLastAddressCmd {
 	}
 }
 
+type ListUtxosCmd struct {
+
+}
+
+// GetLastAddressCmd returns a new instance which can be used to issue a
+// getnewaddress JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+func NewListUtxosCmd() *ListUtxosCmd {
+	return &ListUtxosCmd {
+
+	}
+}
+
 // GetRawChangeAddressCmd defines the getrawchangeaddress JSON-RPC command.
 type GetRawChangeAddressCmd struct {
 	Account *string
@@ -712,4 +727,5 @@ func init() {
 	MustRegisterCmd("walletpassphrase", (*WalletPassphraseCmd)(nil), flags)
 	MustRegisterCmd("walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil), flags)
 	MustRegisterCmd("getlastaddress", (*GetLastAddressCmd)(nil), flags)
+	MustRegisterCmd( "listutxos", (*ListUtxosCmd)(nil), flags)
 }

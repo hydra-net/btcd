@@ -940,6 +940,43 @@ func (c *Client) GetLastAddress(change bool) (string, error) {
 	return c.GetLastAddressAsync(change).Receive()
 }
 
+// FutureGetNewAddressResult is a future promise to deliver the result of a
+// GetNewAddressAsync RPC invocation (or an applicable error).
+type FutureListUtxosResult chan *response
+
+// Receive waits for the response promised by the future and returns a new
+// address.
+func (r FutureListUtxosResult) Receive() ([]btcjson.ListUtxosResult, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal result as an array of listunspent results.
+	var unspent []btcjson.ListUtxosResult
+	err = json.Unmarshal(res, &unspent)
+	if err != nil {
+		return nil, err
+	}
+
+	return unspent, nil
+}
+
+// GetNewAddressAsync returns an instance of a type that can be used to get the
+// result of the RPC at some future time by invoking the Receive function on the
+// returned instance.
+//
+// See GetNewAddress for the blocking version and more details.
+func (c *Client) ListUtxosAsync() FutureListUtxosResult {
+	cmd := btcjson.NewListUtxosCmd()
+	return c.sendCmd(cmd)
+}
+
+// GetNewAddress returns a new address.
+func (c *Client) ListUtxos() ([]btcjson.ListUtxosResult, error) {
+	return c.ListUtxosAsync().Receive()
+}
+
 // FutureGetRawChangeAddressResult is a future promise to deliver the result of
 // a GetRawChangeAddressAsync RPC invocation (or an applicable error).
 type FutureGetRawChangeAddressResult chan *response

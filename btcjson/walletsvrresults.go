@@ -159,3 +159,11 @@ type GetBestBlockResult struct {
 	Hash   string `json:"hash"`
 	Height int32  `json:"height"`
 }
+
+type ListUtxosResult struct {
+	TxID          string  `json:"txid"`
+	Vout          uint32  `json:"vout"`
+	Address       string  `json:"address"`
+	Amount        int64   `json:"amount"`
+	Confirmations int64   `json:"confirmations"`
+}
