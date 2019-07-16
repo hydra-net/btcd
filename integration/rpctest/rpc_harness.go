@@ -20,6 +20,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcwallet/chain"
 )
 
 const (
@@ -78,6 +79,7 @@ type Harness struct {
 	// to.
 	ActiveNet *chaincfg.Params
 
+	Client   *chain.LightWalletClient
 	Node     *rpcclient.Client
 	node     *node
 	handlers *rpcclient.NotificationHandlers
@@ -189,8 +191,17 @@ func New(activeNet *chaincfg.Params, handlers *rpcclient.NotificationHandlers,
 		handlers.OnFilteredBlockDisconnected = wallet.UnwindBlock
 	}
 
+	lightWalletConn, err := chain.NewLightWalletConn(
+		&chaincfg.MainNetParams, "127.0.0.1:12345",
+		"ross", "ross",
+		"tcp://127.0.0.1:23456", 100*time.Millisecond,
+	)
+
+	client := lightWalletConn.NewLightWalletClient()
+
 	h := &Harness{
 		handlers:       handlers,
+		Client:			client,
 		node:           node,
 		maxConnRetries: 20,
 		testNodeDir:    nodeTestData,
@@ -356,6 +367,12 @@ func (h *Harness) SendOutputs(targetOutputs []*wire.TxOut,
 	return h.wallet.SendOutputs(targetOutputs, feeRate)
 }
 
+func (h *Harness) SendOutputsLW(targetOutputs []*wire.TxOut,
+	feeRate btcutil.Amount) (*wire.MsgTx, error) {
+
+	return h.wallet.SendOutputsLW(targetOutputs, feeRate)
+}
+
 // SendOutputsWithoutChange creates and sends a transaction that pays to the
 // specified outputs while observing the passed fee rate and ignoring a change
 // output. The passed fee rate should be expressed in sat/b.
@@ -365,6 +382,12 @@ func (h *Harness) SendOutputsWithoutChange(targetOutputs []*wire.TxOut,
 	feeRate btcutil.Amount) (*chainhash.Hash, error) {
 
 	return h.wallet.SendOutputsWithoutChange(targetOutputs, feeRate)
+}
+
+func (h *Harness) SendOutputsWithoutChangeLW(targetOutputs []*wire.TxOut,
+	feeRate btcutil.Amount) (*wire.MsgTx, error) {
+
+	return h.wallet.SendOutputsWithoutChangeLW(targetOutputs, feeRate)
 }
 
 // CreateTransaction returns a fully signed transaction paying to the specified
