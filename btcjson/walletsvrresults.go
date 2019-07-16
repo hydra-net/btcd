@@ -163,7 +163,7 @@ type GetBestBlockResult struct {
 type ListUtxosResult struct {
 	TxID          string  `json:"txid"`
 	Vout          uint32  `json:"vout"`
-	Address       string  `json:"address"`
+	PkScript      string  `json:"scriptPubKey"`
 	Amount        int64   `json:"amount"`
 	Confirmations int64   `json:"confirmations"`
 }

@@ -198,12 +198,12 @@ func NewGetRawFilterCmd(hash string) *GetRawFilterCmd {
 // GetUnspentOutputCmd defines the getunspentoutput JSON-RPC command.
 type GetUnspentOutputCmd struct {
 	BlockHash string
-	Index 	  int32
+	Index 	  uint32
 }
 
 // NewGetUnspentOutputCmd returns a new instance which can be used to issue a getunspentoutput
 // JSON-RPC command.
-func NewGetUnspentOutputCmd(hash string, index int32) *GetUnspentOutputCmd {
+func NewGetUnspentOutputCmd(hash string, index uint32) *GetUnspentOutputCmd {
 	return &GetUnspentOutputCmd{
 		BlockHash: hash,
 		Index:     index,

@@ -248,7 +248,7 @@ func (r FutureGetUnspentOutputResult) Receive() (*btcjson.GetUnspentOutputResult
 
 // GetUnspentOutputAsync returns the result of the RPC call at some future time
 // by invoking the Receive function on the returned instance.
-func (c *Client) GetUnspentOutputAsync(blockHash *chainhash.Hash, index int32) FutureGetUnspentOutputResult {
+func (c *Client) GetUnspentOutputAsync(blockHash *chainhash.Hash, index uint32) FutureGetUnspentOutputResult {
 	hash := ""
 	if blockHash != nil {
 		hash = blockHash.String()
@@ -259,7 +259,7 @@ func (c *Client) GetUnspentOutputAsync(blockHash *chainhash.Hash, index int32) F
 }
 
 // GetUnspentOutput returns utxo set for given hash.
-func (c *Client) GetUnspentOutput(hash *chainhash.Hash, index int32) (*btcjson.GetUnspentOutputResult, error) {
+func (c *Client) GetUnspentOutput(hash *chainhash.Hash, index uint32) (*btcjson.GetUnspentOutputResult, error) {
 	return c.GetUnspentOutputAsync(hash, index).Receive()
 }
 

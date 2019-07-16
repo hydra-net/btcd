@@ -905,6 +905,43 @@ func (c *Client) GetNewAddress(account string) (btcutil.Address, error) {
 
 // FutureGetNewAddressResult is a future promise to deliver the result of a
 // GetNewAddressAsync RPC invocation (or an applicable error).
+type FutureLWDumpPrivKeyResult chan *response
+
+// Receive waits for the response promised by the future and returns a new
+// address.
+func (r FutureLWDumpPrivKeyResult) Receive() (*string, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal result as a string.
+	var encodedKey string
+	err = json.Unmarshal(res, &encodedKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &encodedKey, nil
+}
+
+// GetNewAddressAsync returns an instance of a type that can be used to get the
+// result of the RPC at some future time by invoking the Receive function on the
+// returned instance.
+//
+// See GetNewAddress for the blocking version and more details.
+func (c *Client) LWDumpPrivKeyAsync(pkScriptHex string) FutureLWDumpPrivKeyResult {
+	cmd := btcjson.NewDumpPrivKeyCmd(pkScriptHex)
+	return c.sendCmd(cmd)
+}
+
+// GetNewAddress returns a new address.
+func (c *Client) LWDumpPrivKey(pkScriptHex string) (*string, error) {
+	return c.LWDumpPrivKeyAsync(pkScriptHex).Receive()
+}
+
+// FutureGetNewAddressResult is a future promise to deliver the result of a
+// GetNewAddressAsync RPC invocation (or an applicable error).
 type FutureGetLastAddressResult chan *response
 
 // Receive waits for the response promised by the future and returns a new
@@ -2351,3 +2388,109 @@ func (c *Client) GetInfo() (*btcjson.InfoWalletResult, error) {
 // DUMP
 // importwallet (NYI in btcwallet)
 // dumpwallet (NYI in btcwallet)
+
+
+
+
+// LightWallet
+
+// DeriveNextKey
+
+type FutureDeriveNextKeyResult chan *response
+
+
+func (r FutureDeriveNextKeyResult) Receive() (*btcjson.KeyDescriptorResult, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal result as a getinfo result object.
+	var descriptor btcjson.KeyDescriptorResult
+	err = json.Unmarshal(res, &descriptor)
+	if err != nil {
+		return nil, err
+	}
+
+	return &descriptor, nil
+}
+
+func (c *Client) DeriveNextKeyAsync(family uint32) FutureDeriveNextKeyResult {
+	cmd := &btcjson.DeriveNextKeyCmd{
+		Family: family,
+	}
+	return c.sendCmd(cmd)
+}
+
+func (c *Client) DeriveNextKey(family uint32) (*btcjson.KeyDescriptorResult, error) {
+	return c.DeriveNextKeyAsync(family).Receive()
+}
+
+// DeriveKey
+
+type FutureDeriveKeyResult chan *response
+
+
+func (r FutureDeriveKeyResult) Receive() (*btcjson.KeyDescriptorResult, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal result as a getinfo result object.
+	var descriptor btcjson.KeyDescriptorResult
+	err = json.Unmarshal(res, &descriptor)
+	if err != nil {
+		return nil, err
+	}
+
+	return &descriptor, nil
+}
+
+func (c *Client) DeriveKeyAsync(family uint32, index uint32) FutureDeriveKeyResult {
+	cmd := &btcjson.KeyLocator{
+		Family: family,
+		Index: index,
+	}
+	return c.sendCmd(cmd)
+}
+
+func (c *Client) DeriveKey(family uint32, index uint32) (*btcjson.KeyDescriptorResult, error) {
+	return c.DeriveKeyAsync(family, index).Receive()
+}
+
+// DerivePrivKey
+
+type FutureDerivePrivKeyResult chan *response
+
+
+func (r FutureDerivePrivKeyResult) Receive() (*string, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal result as a string.
+	var privKeyHex string
+	err = json.Unmarshal(res, &privKeyHex)
+	if err != nil {
+		return nil, err
+	}
+
+	return &privKeyHex, nil
+}
+
+func (c *Client) DerivePrivKeyAsync(family uint32, index uint32, hexPubKey string) FutureDerivePrivKeyResult {
+	cmd := &btcjson.KeyDescriptorResult {
+		Locator: btcjson.KeyLocator{
+			Family: family,
+			Index: index,
+		},
+		HexPubKey: hexPubKey,
+	}
+	return c.sendCmd(cmd)
+}
+
+func (c *Client) DerivePrivKey(family uint32, index uint32, hexPubKey string) (*string, error) {
+	return c.DerivePrivKeyAsync(family, index, hexPubKey).Receive()
+}

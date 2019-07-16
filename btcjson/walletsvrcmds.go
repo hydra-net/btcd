@@ -683,6 +683,20 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 	}
 }
 
+type KeyLocator struct {
+	Family uint32 `json:"family"`
+	Index uint32 `json:"index"`
+}
+
+type DeriveNextKeyCmd struct {
+	Family uint32
+}
+
+type KeyDescriptorResult struct {
+	Locator KeyLocator `json:"locator"`
+	HexPubKey string `json:"pubkey"`
+}
+
 func init() {
 	// The commands in this file are only usable with a wallet server.
 	flags := UFWalletOnly
@@ -728,4 +742,7 @@ func init() {
 	MustRegisterCmd("walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil), flags)
 	MustRegisterCmd("getlastaddress", (*GetLastAddressCmd)(nil), flags)
 	MustRegisterCmd( "listutxos", (*ListUtxosCmd)(nil), flags)
+	MustRegisterCmd("derivenextkey", (*DeriveNextKeyCmd)(nil), flags)
+	MustRegisterCmd("derivekey", (*KeyLocator)(nil), flags)
+	MustRegisterCmd("deriveprivkey", (*KeyDescriptorResult)(nil), flags)
 }
