@@ -460,6 +460,12 @@ func (m *memWallet) SendOutputs(outputs []*wire.TxOut,
 	return m.rpc.SendRawTransaction(tx, true)
 }
 
+func (m *memWallet) SendOutputsLW(outputs []*wire.TxOut,
+	feeRate btcutil.Amount) (*wire.MsgTx, error) {
+
+	return m.CreateTransaction(outputs, feeRate, true)
+}
+
 // SendOutputsWithoutChange creates and sends a transaction that pays to the
 // specified outputs while observing the passed fee rate and ignoring a change
 // output. The passed fee rate should be expressed in sat/b.
@@ -473,6 +479,13 @@ func (m *memWallet) SendOutputsWithoutChange(outputs []*wire.TxOut,
 
 	return m.rpc.SendRawTransaction(tx, true)
 }
+
+func (m *memWallet) SendOutputsWithoutChangeLW(outputs []*wire.TxOut,
+	feeRate btcutil.Amount) (*wire.MsgTx, error) {
+
+	return m.CreateTransaction(outputs, feeRate, false)
+}
+
 
 // CreateTransaction returns a fully signed transaction paying to the specified
 // outputs while observing the desired fee rate. The passed fee rate should be
