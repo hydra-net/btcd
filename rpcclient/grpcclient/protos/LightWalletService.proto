@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+//import "google/protobuf/empty.proto";
+import "Common.proto";
+
+package lightwalletrpc;
+
+message GetChainInfoResponse {
+    /// The signature for the given message
+    string bestBlockHash = 1;
+    int32 height = 2;
+}
+
+message GetBlockHeaderRequest {
+    string hash = 1;
+    bool verbose = 2;
+}
+
+
+
+message FilterBlockResponse {
+    repeated string transactions = 1;
+}
+
+message BlockFilter {
+    int32 n = 1;
+    uint64 m = 2;
+    uint32 p = 3;
+    string bytes = 4;
+}
+
+message DumpPrivKeyRequest {
+    string scriptPubKey = 1;
+}
+
+message Utxo {
+    uint32 vout = 1;
+    string txid = 2;
+    int64 value = 3;
+    string scriptPubKey = 4;
+    int32 confirmations = 5;
+}
+
+message ListUtxoResult {
+    repeated Utxo utxos = 1;
+}
+
+message GetLastAddressRequest {
+    bool isChange = 1;
+}
+
+message GetLastAddressResponse {
+    string address = 1;
+}
+
+service LightWalletService {
+    /**
+    GetBestBlock returns the highest block known to lightwallet.
+    */
+    rpc GetChainInfo(Empty) returns (GetChainInfoResponse);
+
+    rpc GetBlockHash(Height) returns (BlockHash);
+
+    rpc GetBlockHeader(BlockHash) returns (HexEncoded);
+
+    rpc GetBlockHeaderVerbose(BlockHash) returns (BlockHeader);
+
+    rpc GetFilterBLock(BlockHash) returns (FilterBlockResponse);
+
+    rpc GetBlockFilter(BlockHash) returns (BlockFilter);
+
+    rpc GetTxOut(Outpoint) returns (TxOut);
+
+    rpc GetRawTransaction(TxID) returns (HexEncoded);
+
+    rpc GetLastAddress(GetLastAddressRequest) returns (GetLastAddressResponse);
+
+    rpc ListUtxos(Outpoint) returns (ListUtxoResult);
+
+    rpc DumpPrivKey(DumpPrivKeyRequest) returns (HexEncoded);
+
+    rpc SendRawTransaction(HexEncoded) returns (TxID);
+}
