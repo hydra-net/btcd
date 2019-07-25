@@ -110,66 +110,6 @@ func (c *Client) GetBlock(blockHash *chainhash.Hash) (*wire.MsgBlock, error) {
 	return c.GetBlockAsync(blockHash).Receive()
 }
 
-// FutureStartRescanResult is a future promise to deliver the result of a
-// StartRescanAsync RPC invocation (or an applicable error).
-type FutureStartRescanResult chan *response
-
-// Receive waits for the response promised by the future and returns status
-// from the server.
-func (r FutureStartRescanResult) Receive() (*string, error) {
-	res, err := receiveFuture(r)
-	if err != nil {
-		return nil, err
-	}
-
-	// Unmarshal result as a string.
-	var response string
-	err = json.Unmarshal(res, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	return &response, nil
-}
-
-// StartRescanAsync returns an instance of a type that can be used to get the
-// result of the RPC at some future time by invoking the Receive function on the
-// returned instance.
-func (c *Client) StartRescanAsync(blockHash *chainhash.Hash) FutureStartRescanResult {
-	hash := blockHash.String()
-	cmd := btcjson.NewStartRescanCmd(hash)
-	return c.sendCmd(cmd)
-}
-
-// StartRescan starts rescan starting from the given hash.
-func (c *Client) StartRescan(blockHash *chainhash.Hash) (*string, error) {
-	return c.StartRescanAsync(blockHash).Receive()
-}
-
-// FutureAbortRescanResult is a future promise to deliver the result of a
-// AbortRescanAsync RPC invocation (or an applicable error).
-type FutureAbortRescanResult chan *response
-
-// Receive waits for the response promised by the future and returns status
-// from the server.
-func (r FutureAbortRescanResult) Receive() error {
-	_, err := receiveFuture(r)
-
-	return err
-}
-
-// AbortRescanAsync returns the result of the RPC call at some future time
-// by invoking the Receive function on the returned instance.
-func (c *Client) AbortRescanAsync() FutureAbortRescanResult {
-	cmd := btcjson.NewAbortRescanCmd()
-	return c.sendCmd(cmd)
-}
-
-// AbortRescan stops rescan.
-func (c *Client) AbortRescan() error {
-	return c.AbortRescanAsync().Receive()
-}
-
 // FutureGetFilterBlockResult is a future promise to deliver the result of a
 // GetFilterBlockAsync RPC invocation (or an applicable error).
 type FutureGetFilterBlockResult chan *response

@@ -8,10 +8,10 @@ package lightwalletrpc;
 
 message KeyLocator {
     /// The family of key being identified.
-    int32 keyFamily = 1;
+    uint32 keyFamily = 1;
 
     /// The precise index of the key being identified.
-    int32 keyIndex = 2;
+    uint32 keyIndex = 2;
 }
 
 message KeyDescriptor {
@@ -29,7 +29,7 @@ message KeyDescriptor {
 }
 
 message DeriveNextKeyReq {
-    int32 keyFamily = 1;
+    uint32 keyFamily = 1;
 }
 
 service KeychainService {

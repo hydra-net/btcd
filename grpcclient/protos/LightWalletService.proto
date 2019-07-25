@@ -1,6 +1,5 @@
 syntax = "proto3";
 
-//import "google/protobuf/empty.proto";
 import "Common.proto";
 
 package lightwalletrpc;
@@ -16,14 +15,12 @@ message GetBlockHeaderRequest {
     bool verbose = 2;
 }
 
-
-
 message FilterBlockResponse {
     repeated string transactions = 1;
 }
 
 message BlockFilter {
-    int32 n = 1;
+    uint32 n = 1;
     uint64 m = 2;
     uint32 p = 3;
     string bytes = 4;
@@ -38,7 +35,7 @@ message Utxo {
     string txid = 2;
     int64 value = 3;
     string scriptPubKey = 4;
-    int32 confirmations = 5;
+    int64 confirmations = 5;
 }
 
 message ListUtxoResult {
@@ -51,6 +48,20 @@ message GetLastAddressRequest {
 
 message GetLastAddressResponse {
     string address = 1;
+}
+
+message ListUtxosRequest {
+    int32 minConf = 1;
+    int32 maxConf = 2;
+    repeated string addresses = 3;
+}
+
+message GenerateRequest {
+    uint32 numBlocks = 1;
+}
+
+message GenerateResponse {
+    repeated string blockHash = 1;
 }
 
 service LightWalletService {
@@ -75,9 +86,11 @@ service LightWalletService {
 
     rpc GetLastAddress(GetLastAddressRequest) returns (GetLastAddressResponse);
 
-    rpc ListUtxos(Outpoint) returns (ListUtxoResult);
+    rpc ListUtxos(ListUtxosRequest) returns (ListUtxoResult);
 
     rpc DumpPrivKey(DumpPrivKeyRequest) returns (HexEncoded);
 
     rpc SendRawTransaction(HexEncoded) returns (TxID);
+
+    rpc Generate(GenerateRequest) returns (GenerateResponse);
 }
