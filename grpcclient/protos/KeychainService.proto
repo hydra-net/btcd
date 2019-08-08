@@ -32,10 +32,6 @@ message DeriveNextKeyReq {
     uint32 keyFamily = 1;
 }
 
-message IsOurAddressRequest {
-    bytes scriptAddress = 1;
-}
-
 message IsOurAddressResponse {
     bool isOur = 1;
 }
@@ -44,5 +40,5 @@ service KeychainService {
     rpc DeriveNextKey(DeriveNextKeyReq) returns (KeyDescriptor);
     rpc DeriveKey(KeyLocator) returns (KeyDescriptor);
     rpc DerivePrivKey(KeyDescriptor) returns (HexEncoded);
-    rpc IsOurAddress(IsOurAddressRequest) returns (IsOurAddressResponse);
+    rpc IsOurAddress(HexEncoded) returns (IsOurAddressResponse);
 }
