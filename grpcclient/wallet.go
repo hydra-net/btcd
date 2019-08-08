@@ -155,12 +155,12 @@ func (c *Client) DeriveNextKey(family uint32) (*btcjson.KeyDescriptorResult, err
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func (c *Client) IsOurAddress(scriptAddress []byte) bool {
+func (c *Client) IsOurAddress(encodedAddress string) bool {
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
 
-	isOurAddressRequest := &pb.IsOurAddressRequest{
-		ScriptAddress: scriptAddress,
+	isOurAddressRequest := &pb.HexEncoded{
+		Hash: encodedAddress,
 	}
 
 	response, err := c.keyChainClient.IsOurAddress(ctx, isOurAddressRequest)
