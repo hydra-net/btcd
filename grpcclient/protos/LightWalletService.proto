@@ -65,7 +65,7 @@ message GenerateResponse {
 }
 
 message GetBlockResponse {
-    BlockHeader blockHeader = 1;
+    HexEncoded blockHeader = 1;
     repeated string transactions = 2;
 }
 

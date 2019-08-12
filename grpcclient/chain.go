@@ -36,6 +36,60 @@ func (c *Client) GetBestBlock() (*chainhash.Hash, int32, error) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+func (c *Client) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
+
+	blockHash := &pb.BlockHash {
+		Hash: hash.String(),
+	}
+
+	response, err := c.lwClient.GetBlock(ctx, blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	// get blockheader
+	serializedBH, err := hex.DecodeString(response.BlockHeader.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Deserialize the blockheader and return it.
+	var bh wire.BlockHeader
+	err = bh.Deserialize(bytes.NewReader(serializedBH))
+	if err != nil {
+		return nil, err
+	}
+
+	// get transactions
+	var txns []*wire.MsgTx
+
+	for _, val := range response.Transactions {
+
+		rawBytes, _ := hex.DecodeString(val)
+
+		var tx wire.MsgTx
+		err := tx.Deserialize(bytes.NewReader(rawBytes))
+
+		if err != nil {
+			return nil, err
+		}
+
+		txns = append(txns, &tx)
+	}
+
+	block := wire.MsgBlock {
+		Header: bh,
+		Transactions: txns,
+	}
+
+	return &block, nil
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
 func (c *Client) GetFilterBlock(hash *chainhash.Hash) ([]*wire.MsgTx, error) {
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
