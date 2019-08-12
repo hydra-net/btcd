@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-/// import "rpc.proto";
-/// import "signrpc/signer.proto";
 import "Common.proto";
 
 package lightwalletrpc;

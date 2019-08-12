@@ -98,7 +98,7 @@ func (c *Client) GetFilterBlock(hash *chainhash.Hash) ([]*wire.MsgTx, error) {
 		Hash: hash.String(),
 	}
 
-	response, err := c.lwClient.GetFilterBLock(ctx, blockHash)
+	response, err := c.lwClient.GetFilterBlock(ctx, blockHash)
 	if err != nil {
 		return nil, err
 	}

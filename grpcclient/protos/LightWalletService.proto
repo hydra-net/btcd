@@ -83,7 +83,7 @@ service LightWalletService {
 
     rpc GetBlockHeaderVerbose(BlockHash) returns (BlockHeader);
 
-    rpc GetFilterBLock(BlockHash) returns (FilterBlockResponse);
+    rpc GetFilterBlock(BlockHash) returns (FilterBlockResponse);
 
     rpc GetBlockFilter(BlockHash) returns (BlockFilter);
 
