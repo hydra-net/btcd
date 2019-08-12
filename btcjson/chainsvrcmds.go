@@ -147,47 +147,6 @@ func NewGetBlockCmd(hash string, verbose, verboseTx *bool) *GetBlockCmd {
 	}
 }
 
-// StartRescanCmd defines the startrescan JSON-RPC command.
-type GetFilterBlockCmd struct {
-	Hash string
-}
-
-// NewStartRescanCmd returns a new instance which can be used to issue a
-// startrescan JSON-RPC command.
-func NewGetFilterBlockCmd(hash string) *GetFilterBlockCmd {
-	return &GetFilterBlockCmd{
-		Hash: hash,
-	}
-}
-
-// GetRawFilterCmd defines the getrawfilter JSON-RPC command.
-type GetRawFilterCmd struct {
-	Hash      string
-}
-
-// NewGetRawFilterCmd returns a new instance which can be used to issue a getrawfilter
-// JSON-RPC command.
-func NewGetRawFilterCmd(hash string) *GetRawFilterCmd {
-	return &GetRawFilterCmd{
-		Hash:      hash,
-	}
-}
-
-// GetUnspentOutputCmd defines the getunspentoutput JSON-RPC command.
-type GetUnspentOutputCmd struct {
-	BlockHash string
-	Index 	  uint32
-}
-
-// NewGetUnspentOutputCmd returns a new instance which can be used to issue a getunspentoutput
-// JSON-RPC command.
-func NewGetUnspentOutputCmd(hash string, index uint32) *GetUnspentOutputCmd {
-	return &GetUnspentOutputCmd{
-		BlockHash: hash,
-		Index:     index,
-	}
-}
-
 // GetBlockChainInfoCmd defines the getblockchaininfo JSON-RPC command.
 type GetBlockChainInfoCmd struct{}
 
@@ -876,7 +835,4 @@ func init() {
 	MustRegisterCmd("verifychain", (*VerifyChainCmd)(nil), flags)
 	MustRegisterCmd("verifymessage", (*VerifyMessageCmd)(nil), flags)
 	MustRegisterCmd("verifytxoutproof", (*VerifyTxOutProofCmd)(nil), flags)
-	MustRegisterCmd("getfilterblock", (*GetFilterBlockCmd)(nil), flags)
-	MustRegisterCmd("getrawfilter", (*GetRawFilterCmd)(nil), flags)
-	MustRegisterCmd("getunspentoutput", (*GetUnspentOutputCmd)(nil), flags)
 }
