@@ -64,6 +64,11 @@ message GenerateResponse {
     repeated string blockHash = 1;
 }
 
+message GetBlockResponse {
+    BlockHeader blockHeader = 1;
+    repeated string transactions = 2;
+}
+
 service LightWalletService {
     /**
     GetBestBlock returns the highest block known to lightwallet.
@@ -71,6 +76,8 @@ service LightWalletService {
     rpc GetChainInfo(Empty) returns (GetChainInfoResponse);
 
     rpc GetBlockHash(Height) returns (BlockHash);
+
+    rpc GetBlock(BlockHash) returns (GetBlockResponse);
 
     rpc GetBlockHeader(BlockHash) returns (HexEncoded);
 
