@@ -50,7 +50,7 @@ func (c *Client) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
 	}
 
 	// get blockheader
-	serializedBH, err := hex.DecodeString(response.BlockHeader.Hash)
+	serializedBH, err := hex.DecodeString(response.BlockHeader)
 	if err != nil {
 		return nil, err
 	}
