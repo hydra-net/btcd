@@ -357,3 +357,21 @@ func (c *Client) GetBlockHeaderVerbose(hash *chainhash.Hash) (*btcjson.GetBlockH
 
 	return result, nil
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+func (c *Client) GetConfirmedBalance(confs int32) (btcutil.Amount, error) {
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
+
+	confirmations := &pb.GetConfirmedBalanceRequest {
+		Confs: confs,
+	}
+
+	response, err := c.lwClient.GetConfirmedBalance(ctx, confirmations)
+	if err != nil {
+		return 0, err
+	}
+
+	return btcutil.Amount(response.Amount), nil
+}

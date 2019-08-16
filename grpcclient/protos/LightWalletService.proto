@@ -69,6 +69,14 @@ message GetBlockResponse {
     repeated string transactions = 2;
 }
 
+message GetConfirmedBalanceRequest {
+    int32 confs = 1;
+}
+
+message GetConfirmedBalanceResponse {
+    int64 amount = 1;
+}
+
 service LightWalletService {
     /**
     GetBestBlock returns the highest block known to lightwallet.
@@ -98,6 +106,8 @@ service LightWalletService {
     rpc DumpPrivKey(DumpPrivKeyRequest) returns (HexEncoded);
 
     rpc SendRawTransaction(HexEncoded) returns (TxID);
+
+    rpc GetConfirmedBalance(GetConfirmedBalanceRequest) returns (GetConfirmedBalanceResponse);
 
     rpc Generate(GenerateRequest) returns (GenerateResponse);
 }
