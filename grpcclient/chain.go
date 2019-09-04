@@ -222,7 +222,24 @@ func (c *Client) GetBlockHeader(hash *chainhash.Hash) (*wire.BlockHeader, error)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func (c *Client) GetRawTransaction(hash *chainhash.Hash) (*btcutil.Tx, error) {
+type TxConfirmation struct {
+	// BlockHash is the hash of the block that confirmed the original
+	// transition.
+	BlockHash *chainhash.Hash
+
+	// BlockHeight is the height of the block in which the transaction was
+	// confirmed within.
+	BlockHeight uint32
+
+	// TxIndex is the index within the block of the ultimate confirmed
+	// transaction.
+	TxIndex uint32
+
+	// Tx is the transaction for which the notification was requested for.
+	Tx *wire.MsgTx
+}
+
+func (c *Client) GetRawTransaction(hash *chainhash.Hash) (*TxConfirmation, error) {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
 
 	txid := &pb.TxID {
@@ -235,7 +252,7 @@ func (c *Client) GetRawTransaction(hash *chainhash.Hash) (*btcutil.Tx, error) {
 	}
 
 	// Decode the serialized transaction hex to raw bytes.
-	serializedTx, err := hex.DecodeString(response.Hash)
+	serializedTx, err := hex.DecodeString(response.TransactionHex)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +263,14 @@ func (c *Client) GetRawTransaction(hash *chainhash.Hash) (*btcutil.Tx, error) {
 		return nil, err
 	}
 
-	return btcutil.NewTx(&msgTx), err
+	blockHash, _ := chainhash.NewHashFromStr(response.BlockHash)
+
+	return &TxConfirmation {
+		Tx: &msgTx,
+		BlockHash: blockHash,
+		BlockHeight: response.BlockHeight,
+		TxIndex: response.BlockHeight,
+	}, nil
 }
 
 ///////////////////////////////////////////////////////////////////////////////

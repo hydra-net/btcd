@@ -2,8 +2,8 @@ package grpcclient
 
 import (
 	"context"
-	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/grpcclient/protos"
+	"github.com/btcsuite/btcd/rpcclient"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )

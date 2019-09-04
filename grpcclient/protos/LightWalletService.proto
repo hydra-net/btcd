@@ -77,6 +77,13 @@ message GetConfirmedBalanceResponse {
     int64 amount = 1;
 }
 
+message GetRawTransactionResponse {
+    string transactionHex = 1;
+    string blockHash = 2;
+    uint32 blockHeight = 3;
+    uint32 txIndex = 4;
+}
+
 service LightWalletService {
     /**
     GetBestBlock returns the highest block known to lightwallet.
@@ -97,7 +104,7 @@ service LightWalletService {
 
     rpc GetTxOut(Outpoint) returns (TxOut);
 
-    rpc GetRawTransaction(TxID) returns (HexEncoded);
+    rpc GetRawTransaction(TxID) returns (GetRawTransactionResponse);
 
     rpc GetLastAddress(GetLastAddressRequest) returns (GetLastAddressResponse);
 
