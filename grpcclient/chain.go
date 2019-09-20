@@ -143,6 +143,10 @@ func (c *Client) GetUnspentOutput(hash *chainhash.Hash, index uint32) (*btcjson.
 		return nil, err
 	}
 
+	if response.ScriptPubkey == "" {
+		return nil, nil
+	}
+
 	result := &btcjson.GetUnspentOutputResult{
 		response.ScriptPubkey,
 		response.Value,
