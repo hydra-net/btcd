@@ -403,3 +403,21 @@ func (c *Client) GetConfirmedBalance(confs int32) (btcutil.Amount, error) {
 
 	return btcutil.Amount(response.Amount), nil
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+func (c *Client) LoadCache(startBlock uint32) (bool, error) {
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
+
+	startHeight := &pb.LoadCacheRequest {
+		StartHeight: startBlock,
+	}
+
+	response, err := c.lwClient.LoadSecondLayerCache(ctx, startHeight)
+	if err != nil {
+		return false, err
+	}
+
+	return response.Loaded, nil
+}

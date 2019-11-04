@@ -84,6 +84,14 @@ message GetRawTransactionResponse {
     uint32 txIndex = 4;
 }
 
+message LoadCacheRequest {
+    uint32 startHeight = 1;
+}
+
+message LoadCacheResponse {
+    bool loaded = 1;
+}
+
 service LightWalletService {
     /**
     GetBestBlock returns the highest block known to lightwallet.
@@ -117,4 +125,8 @@ service LightWalletService {
     rpc GetConfirmedBalance(GetConfirmedBalanceRequest) returns (GetConfirmedBalanceResponse);
 
     rpc Generate(GenerateRequest) returns (GenerateResponse);
+
+    rpc LoadSecondLayerCache(LoadCacheRequest) returns (LoadCacheResponse);
+
+    rpc FreeSecondLayerCache(Empty) returns (Empty);
 }
