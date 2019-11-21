@@ -421,3 +421,18 @@ func (c *Client) LoadCache(startBlock uint32) (bool, error) {
 
 	return response.Loaded, nil
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+func (c *Client) FreeCache() error {
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
+
+	emptyRequest := &pb.Empty{}
+
+	_, err := c.lwClient.FreeSecondLayerCache(ctx, emptyRequest)
+
+	return err
+}
+
+///////////////////////////////////////////////////////////////////////////////
