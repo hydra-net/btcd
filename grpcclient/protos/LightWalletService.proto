@@ -77,6 +77,14 @@ message GetConfirmedBalanceResponse {
     int64 amount = 1;
 }
 
+message EstimateNetworkFeeRequest {
+    uint64 blocks = 1;
+}
+
+message EstimateNetworkFeeResponse {
+    int64 fee = 1;
+}
+
 message GetRawTransactionResponse {
     string transactionHex = 1;
     string blockHash = 2;
@@ -129,4 +137,6 @@ service LightWalletService {
     rpc LoadSecondLayerCache(LoadCacheRequest) returns (LoadCacheResponse);
 
     rpc FreeSecondLayerCache(Empty) returns (Empty);
+
+    rpc EstimateNetworkFee(EstimateNetworkFeeRequest) returns (EstimateNetworkFeeResponse);
 }

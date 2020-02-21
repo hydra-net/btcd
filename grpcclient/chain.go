@@ -436,3 +436,20 @@ func (c *Client) FreeCache() error {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+func (c *Client) EstimateNetworkFee(blocks uint64) (int64, error) {
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
+
+	estimateFeeRequest := &pb.EstimateNetworkFeeRequest{
+		Blocks: blocks,
+	}
+	response, err := c.lwClient.EstimateNetworkFee(ctx, estimateFeeRequest)
+	if err != nil {
+		return 0, err
+	}
+
+	return response.Fee, nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
