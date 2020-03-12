@@ -273,7 +273,7 @@ func (c *Client) GetRawTransaction(hash *chainhash.Hash) (*TxConfirmation, error
 		Tx: &msgTx,
 		BlockHash: blockHash,
 		BlockHeight: response.BlockHeight,
-		TxIndex: response.BlockHeight,
+		TxIndex: response.TxIndex,
 	}, nil
 }
 
