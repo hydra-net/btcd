@@ -279,6 +279,36 @@ func (c *Client) GetRawTransaction(hash *chainhash.Hash) (*TxConfirmation, error
 
 ///////////////////////////////////////////////////////////////////////////////
 
+func (c *Client) GetRawTxByIndex(blockHeight int64, txIndex uint32) (*wire.MsgTx, error) {
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
+
+	request := &pb.GetRawTxByIndexRequest {
+		BlockNum: blockHeight,
+		TxIndex: txIndex,
+	}
+
+	response, err := c.lwClient.GetRawTxByIndex(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode the serialized transaction hex to raw bytes.
+	serializedTx, err := hex.DecodeString(response.TxHex)
+	if err != nil {
+		return nil, err
+	}
+
+	// Deserialize the transaction and return it.
+	var msgTx wire.MsgTx
+	if err := msgTx.Deserialize(bytes.NewReader(serializedTx)); err != nil {
+		return nil, err
+	}
+
+	return &msgTx, nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 func (c *Client) SendRawTransaction(tx *wire.MsgTx, allowHighFees bool) (*chainhash.Hash, error) {
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)

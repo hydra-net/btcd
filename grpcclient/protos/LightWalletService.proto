@@ -92,6 +92,15 @@ message GetRawTransactionResponse {
     uint32 txIndex = 4;
 }
 
+message GetRawTxByIndexRequest {
+    int64 blockNum = 1;
+    uint32 txIndex = 2;
+}
+
+message GetRawTxByIndexResponse {
+    string txHex = 1;
+}
+
 message LoadCacheRequest {
     uint32 startHeight = 1;
 }
@@ -121,6 +130,8 @@ service LightWalletService {
     rpc GetTxOut(Outpoint) returns (TxOut);
 
     rpc GetRawTransaction(TxID) returns (GetRawTransactionResponse);
+
+    rpc GetRawTxByIndex(GetRawTxByIndexRequest) returns (GetRawTxByIndexResponse);
 
     rpc GetLastAddress(GetLastAddressRequest) returns (GetLastAddressResponse);
 
