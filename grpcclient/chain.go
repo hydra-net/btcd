@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"time"
 	"bytes"
+	"log"
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -46,45 +47,32 @@ func (c *Client) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
 
 	response, err := c.lwClient.GetBlock(ctx, blockHash)
 	if err != nil {
+		log.Printf("Failing Getblock due to ", err)
+
 		return nil, err
 	}
 
-	// get blockheader
-	serializedBH, err := hex.DecodeString(response.BlockHeader)
+	//// Unmarshal result as a string.
+	//var blockHex string
+	//err = json.Unmarshal(response, &blockHex)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	// Decode the serialized block hex to raw bytes.
+	serializedBlock, err := hex.DecodeString(response.BlockHex)
 	if err != nil {
 		return nil, err
 	}
 
-	// Deserialize the blockheader and return it.
-	var bh wire.BlockHeader
-	err = bh.Deserialize(bytes.NewReader(serializedBH))
+	// Deserialize the block and return it.
+	var msgBlock wire.MsgBlock
+	err = msgBlock.Deserialize(bytes.NewReader(serializedBlock))
 	if err != nil {
 		return nil, err
 	}
 
-	// get transactions
-	var txns []*wire.MsgTx
-
-	for _, val := range response.Transactions {
-
-		rawBytes, _ := hex.DecodeString(val)
-
-		var tx wire.MsgTx
-		err := tx.Deserialize(bytes.NewReader(rawBytes))
-
-		if err != nil {
-			return nil, err
-		}
-
-		txns = append(txns, &tx)
-	}
-
-	block := wire.MsgBlock {
-		Header: bh,
-		Transactions: txns,
-	}
-
-	return &block, nil
+	return &msgBlock, nil
 }
 
 

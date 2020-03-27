@@ -65,8 +65,7 @@ message GenerateResponse {
 }
 
 message GetBlockResponse {
-    string blockHeader = 1;
-    repeated string transactions = 2;
+    string blockHex = 1;
 }
 
 message GetConfirmedBalanceRequest {
