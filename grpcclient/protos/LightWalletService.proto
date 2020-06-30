@@ -149,4 +149,8 @@ service LightWalletService {
     rpc FreeSecondLayerCache(Empty) returns (Empty);
 
     rpc EstimateNetworkFee(EstimateNetworkFeeRequest) returns (EstimateNetworkFeeResponse);
+
+    rpc LockOutpoint(Outpoint) returns (Empty);
+
+    rpc UnlockOutpoint(Outpoint) returns (Empty);
 }
