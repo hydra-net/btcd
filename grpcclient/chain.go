@@ -458,3 +458,37 @@ func (c *Client) EstimateNetworkFee(blocks uint64) (int64, error) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+func (c *Client) LockOutpoint(outpoint wire.OutPoint) error {
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
+
+	_, err := c.lwClient.LockOutpoint(ctx, &pb.Outpoint{
+		Hash: outpoint.Hash.String(),
+		Index: outpoint.Index,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+func (c *Client) UnlockOutpoint(outpoint wire.OutPoint) error {
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
+
+	_, err := c.lwClient.UnlockOutpoint(ctx, &pb.Outpoint{
+		Hash: outpoint.Hash.String(),
+		Index: outpoint.Index,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
