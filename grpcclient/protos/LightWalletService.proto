@@ -65,7 +65,7 @@ message GenerateResponse {
 }
 
 message GetBlockResponse {
-    string blockHex = 1;
+    bytes block = 1;
 }
 
 message GetConfirmedBalanceRequest {
