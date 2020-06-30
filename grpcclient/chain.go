@@ -52,22 +52,9 @@ func (c *Client) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
 		return nil, err
 	}
 
-	//// Unmarshal result as a string.
-	//var blockHex string
-	//err = json.Unmarshal(response, &blockHex)
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	// Decode the serialized block hex to raw bytes.
-	serializedBlock, err := hex.DecodeString(response.BlockHex)
-	if err != nil {
-		return nil, err
-	}
-
 	// Deserialize the block and return it.
 	var msgBlock wire.MsgBlock
-	err = msgBlock.Deserialize(bytes.NewReader(serializedBlock))
+	err = msgBlock.Deserialize(bytes.NewReader(response.Block))
 	if err != nil {
 		return nil, err
 	}
