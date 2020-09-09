@@ -6,6 +6,7 @@ package btcjson_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -61,6 +62,21 @@ func TestChainSvrCmds(t *testing.T) {
 			},
 		},
 		{
+			name: "createrawtransaction - no inputs",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("createrawtransaction", `[]`, `{"456":0.0123}`)
+			},
+			staticCmd: func() interface{} {
+				amounts := map[string]float64{"456": .0123}
+				return btcjson.NewCreateRawTransactionCmd(nil, amounts, nil)
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"createrawtransaction","params":[[],{"456":0.0123}],"id":1}`,
+			unmarshalled: &btcjson.CreateRawTransactionCmd{
+				Inputs:  []btcjson.TransactionInput{},
+				Amounts: map[string]float64{"456": .0123},
+			},
+		},
+		{
 			name: "createrawtransaction optional",
 			newCmd: func() (interface{}, error) {
 				return btcjson.NewCmd("createrawtransaction", `[{"txid":"123","vout":1}]`,
@@ -80,7 +96,108 @@ func TestChainSvrCmds(t *testing.T) {
 				LockTime: btcjson.Int64(12312333333),
 			},
 		},
+		{
+			name: "fundrawtransaction - empty opts",
+			newCmd: func() (i interface{}, e error) {
+				return btcjson.NewCmd("fundrawtransaction", "deadbeef", "{}")
+			},
+			staticCmd: func() interface{} {
+				deadbeef, err := hex.DecodeString("deadbeef")
+				if err != nil {
+					panic(err)
+				}
+				return btcjson.NewFundRawTransactionCmd(deadbeef, btcjson.FundRawTransactionOpts{}, nil)
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"fundrawtransaction","params":["deadbeef",{}],"id":1}`,
+			unmarshalled: &btcjson.FundRawTransactionCmd{
+				HexTx:     "deadbeef",
+				Options:   btcjson.FundRawTransactionOpts{},
+				IsWitness: nil,
+			},
+		},
+		{
+			name: "fundrawtransaction - full opts",
+			newCmd: func() (i interface{}, e error) {
+				return btcjson.NewCmd("fundrawtransaction", "deadbeef", `{"changeAddress":"bcrt1qeeuctq9wutlcl5zatge7rjgx0k45228cxez655","changePosition":1,"change_type":"legacy","includeWatching":true,"lockUnspents":true,"feeRate":0.7,"subtractFeeFromOutputs":[0],"replaceable":true,"conf_target":8,"estimate_mode":"ECONOMICAL"}`)
+			},
+			staticCmd: func() interface{} {
+				deadbeef, err := hex.DecodeString("deadbeef")
+				if err != nil {
+					panic(err)
+				}
+				changeAddress := "bcrt1qeeuctq9wutlcl5zatge7rjgx0k45228cxez655"
+				change := 1
+				changeType := "legacy"
+				watching := true
+				lockUnspents := true
+				feeRate := 0.7
+				replaceable := true
+				confTarget := 8
 
+				return btcjson.NewFundRawTransactionCmd(deadbeef, btcjson.FundRawTransactionOpts{
+					ChangeAddress:          &changeAddress,
+					ChangePosition:         &change,
+					ChangeType:             &changeType,
+					IncludeWatching:        &watching,
+					LockUnspents:           &lockUnspents,
+					FeeRate:                &feeRate,
+					SubtractFeeFromOutputs: []int{0},
+					Replaceable:            &replaceable,
+					ConfTarget:             &confTarget,
+					EstimateMode:           &btcjson.EstimateModeEconomical,
+				}, nil)
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"fundrawtransaction","params":["deadbeef",{"changeAddress":"bcrt1qeeuctq9wutlcl5zatge7rjgx0k45228cxez655","changePosition":1,"change_type":"legacy","includeWatching":true,"lockUnspents":true,"feeRate":0.7,"subtractFeeFromOutputs":[0],"replaceable":true,"conf_target":8,"estimate_mode":"ECONOMICAL"}],"id":1}`,
+			unmarshalled: func() interface{} {
+				changeAddress := "bcrt1qeeuctq9wutlcl5zatge7rjgx0k45228cxez655"
+				change := 1
+				changeType := "legacy"
+				watching := true
+				lockUnspents := true
+				feeRate := 0.7
+				replaceable := true
+				confTarget := 8
+				return &btcjson.FundRawTransactionCmd{
+					HexTx: "deadbeef",
+					Options: btcjson.FundRawTransactionOpts{
+						ChangeAddress:          &changeAddress,
+						ChangePosition:         &change,
+						ChangeType:             &changeType,
+						IncludeWatching:        &watching,
+						LockUnspents:           &lockUnspents,
+						FeeRate:                &feeRate,
+						SubtractFeeFromOutputs: []int{0},
+						Replaceable:            &replaceable,
+						ConfTarget:             &confTarget,
+						EstimateMode:           &btcjson.EstimateModeEconomical,
+					},
+					IsWitness: nil,
+				}
+			}(),
+		},
+		{
+			name: "fundrawtransaction - iswitness",
+			newCmd: func() (i interface{}, e error) {
+				return btcjson.NewCmd("fundrawtransaction", "deadbeef", "{}", true)
+			},
+			staticCmd: func() interface{} {
+				deadbeef, err := hex.DecodeString("deadbeef")
+				if err != nil {
+					panic(err)
+				}
+				t := true
+				return btcjson.NewFundRawTransactionCmd(deadbeef, btcjson.FundRawTransactionOpts{}, &t)
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"fundrawtransaction","params":["deadbeef",{},true],"id":1}`,
+			unmarshalled: &btcjson.FundRawTransactionCmd{
+				HexTx:   "deadbeef",
+				Options: btcjson.FundRawTransactionOpts{},
+				IsWitness: func() *bool {
+					t := true
+					return &t
+				}(),
+			},
+		},
 		{
 			name: "decoderawtransaction",
 			newCmd: func() (interface{}, error) {
@@ -142,50 +259,57 @@ func TestChainSvrCmds(t *testing.T) {
 		{
 			name: "getblock",
 			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getblock", "123", btcjson.Int(0))
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetBlockCmd("123", btcjson.Int(0))
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"getblock","params":["123",0],"id":1}`,
+			unmarshalled: &btcjson.GetBlockCmd{
+				Hash:      "123",
+				Verbosity: btcjson.Int(0),
+			},
+		},
+		{
+			name: "getblock default verbosity",
+			newCmd: func() (interface{}, error) {
 				return btcjson.NewCmd("getblock", "123")
 			},
 			staticCmd: func() interface{} {
-				return btcjson.NewGetBlockCmd("123", nil, nil)
+				return btcjson.NewGetBlockCmd("123", nil)
 			},
 			marshalled: `{"jsonrpc":"1.0","method":"getblock","params":["123"],"id":1}`,
 			unmarshalled: &btcjson.GetBlockCmd{
 				Hash:      "123",
-				Verbose:   btcjson.Bool(true),
-				VerboseTx: btcjson.Bool(false),
+				Verbosity: btcjson.Int(1),
 			},
 		},
 		{
 			name: "getblock required optional1",
 			newCmd: func() (interface{}, error) {
-				// Intentionally use a source param that is
-				// more pointers than the destination to
-				// exercise that path.
-				verbosePtr := btcjson.Bool(true)
-				return btcjson.NewCmd("getblock", "123", &verbosePtr)
+				return btcjson.NewCmd("getblock", "123", btcjson.Int(1))
 			},
 			staticCmd: func() interface{} {
-				return btcjson.NewGetBlockCmd("123", btcjson.Bool(true), nil)
+				return btcjson.NewGetBlockCmd("123", btcjson.Int(1))
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"getblock","params":["123",true],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"getblock","params":["123",1],"id":1}`,
 			unmarshalled: &btcjson.GetBlockCmd{
 				Hash:      "123",
-				Verbose:   btcjson.Bool(true),
-				VerboseTx: btcjson.Bool(false),
+				Verbosity: btcjson.Int(1),
 			},
 		},
 		{
 			name: "getblock required optional2",
 			newCmd: func() (interface{}, error) {
-				return btcjson.NewCmd("getblock", "123", true, true)
+				return btcjson.NewCmd("getblock", "123", btcjson.Int(2))
 			},
 			staticCmd: func() interface{} {
-				return btcjson.NewGetBlockCmd("123", btcjson.Bool(true), btcjson.Bool(true))
+				return btcjson.NewGetBlockCmd("123", btcjson.Int(2))
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"getblock","params":["123",true,true],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"getblock","params":["123",2],"id":1}`,
 			unmarshalled: &btcjson.GetBlockCmd{
 				Hash:      "123",
-				Verbose:   btcjson.Bool(true),
-				VerboseTx: btcjson.Bool(true),
+				Verbosity: btcjson.Int(2),
 			},
 		},
 		{
@@ -211,6 +335,28 @@ func TestChainSvrCmds(t *testing.T) {
 			unmarshalled: &btcjson.GetBlockCountCmd{},
 		},
 		{
+			name: "getblockfilter",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getblockfilter", "0000afaf")
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetBlockFilterCmd("0000afaf", nil)
+			},
+			marshalled:   `{"jsonrpc":"1.0","method":"getblockfilter","params":["0000afaf"],"id":1}`,
+			unmarshalled: &btcjson.GetBlockFilterCmd{"0000afaf", nil},
+		},
+		{
+			name: "getblockfilter optional filtertype",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getblockfilter", "0000afaf", "basic")
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetBlockFilterCmd("0000afaf", btcjson.NewFilterTypeName(btcjson.FilterTypeBasic))
+			},
+			marshalled:   `{"jsonrpc":"1.0","method":"getblockfilter","params":["0000afaf","basic"],"id":1}`,
+			unmarshalled: &btcjson.GetBlockFilterCmd{"0000afaf", btcjson.NewFilterTypeName(btcjson.FilterTypeBasic)},
+		},
+		{
 			name: "getblockhash",
 			newCmd: func() (interface{}, error) {
 				return btcjson.NewCmd("getblockhash", 123)
@@ -233,6 +379,60 @@ func TestChainSvrCmds(t *testing.T) {
 			unmarshalled: &btcjson.GetBlockHeaderCmd{
 				Hash:    "123",
 				Verbose: btcjson.Bool(true),
+			},
+		},
+		{
+			name: "getblockstats height",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getblockstats", btcjson.HashOrHeight{Value: 123})
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetBlockStatsCmd(btcjson.HashOrHeight{Value: 123}, nil)
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"getblockstats","params":[123],"id":1}`,
+			unmarshalled: &btcjson.GetBlockStatsCmd{
+				HashOrHeight: btcjson.HashOrHeight{Value: 123},
+			},
+		},
+		{
+			name: "getblockstats hash",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getblockstats", btcjson.HashOrHeight{Value: "deadbeef"})
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetBlockStatsCmd(btcjson.HashOrHeight{Value: "deadbeef"}, nil)
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"getblockstats","params":["deadbeef"],"id":1}`,
+			unmarshalled: &btcjson.GetBlockStatsCmd{
+				HashOrHeight: btcjson.HashOrHeight{Value: "deadbeef"},
+			},
+		},
+		{
+			name: "getblockstats height optional stats",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getblockstats", btcjson.HashOrHeight{Value: 123}, []string{"avgfee", "maxfee"})
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetBlockStatsCmd(btcjson.HashOrHeight{Value: 123}, &[]string{"avgfee", "maxfee"})
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"getblockstats","params":[123,["avgfee","maxfee"]],"id":1}`,
+			unmarshalled: &btcjson.GetBlockStatsCmd{
+				HashOrHeight: btcjson.HashOrHeight{Value: 123},
+				Stats:        &[]string{"avgfee", "maxfee"},
+			},
+		},
+		{
+			name: "getblockstats hash optional stats",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getblockstats", btcjson.HashOrHeight{Value: "deadbeef"}, []string{"avgfee", "maxfee"})
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetBlockStatsCmd(btcjson.HashOrHeight{Value: "deadbeef"}, &[]string{"avgfee", "maxfee"})
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"getblockstats","params":["deadbeef",["avgfee","maxfee"]],"id":1}`,
+			unmarshalled: &btcjson.GetBlockStatsCmd{
+				HashOrHeight: btcjson.HashOrHeight{Value: "deadbeef"},
+				Stats:        &[]string{"avgfee", "maxfee"},
 			},
 		},
 		{
@@ -360,6 +560,44 @@ func TestChainSvrCmds(t *testing.T) {
 			},
 			marshalled:   `{"jsonrpc":"1.0","method":"getchaintips","params":[],"id":1}`,
 			unmarshalled: &btcjson.GetChainTipsCmd{},
+		},
+		{
+			name: "getchaintxstats",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getchaintxstats")
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetChainTxStatsCmd(nil, nil)
+			},
+			marshalled:   `{"jsonrpc":"1.0","method":"getchaintxstats","params":[],"id":1}`,
+			unmarshalled: &btcjson.GetChainTxStatsCmd{},
+		},
+		{
+			name: "getchaintxstats optional nblocks",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getchaintxstats", btcjson.Int32(1000))
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetChainTxStatsCmd(btcjson.Int32(1000), nil)
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"getchaintxstats","params":[1000],"id":1}`,
+			unmarshalled: &btcjson.GetChainTxStatsCmd{
+				NBlocks: btcjson.Int32(1000),
+			},
+		},
+		{
+			name: "getchaintxstats optional nblocks and blockhash",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getchaintxstats", btcjson.Int32(1000), btcjson.String("0000afaf"))
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetChainTxStatsCmd(btcjson.Int32(1000), btcjson.String("0000afaf"))
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"getchaintxstats","params":[1000,"0000afaf"],"id":1}`,
+			unmarshalled: &btcjson.GetChainTxStatsCmd{
+				NBlocks:   btcjson.Int32(1000),
+				BlockHash: btcjson.String("0000afaf"),
+			},
 		},
 		{
 			name: "getconnectioncount",
@@ -949,6 +1187,20 @@ func TestChainSvrCmds(t *testing.T) {
 			},
 		},
 		{
+			name: "signmessagewithprivkey",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("signmessagewithprivkey", "5Hue", "Hey")
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewSignMessageWithPrivKey("5Hue", "Hey")
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"signmessagewithprivkey","params":["5Hue","Hey"],"id":1}`,
+			unmarshalled: &btcjson.SignMessageWithPrivKeyCmd{
+				PrivKey: "5Hue",
+				Message: "Hey",
+			},
+		},
+		{
 			name: "stop",
 			newCmd: func() (interface{}, error) {
 				return btcjson.NewCmd("stop")
@@ -1085,6 +1337,17 @@ func TestChainSvrCmds(t *testing.T) {
 			unmarshalled: &btcjson.VerifyTxOutProofCmd{
 				Proof: "test",
 			},
+		},
+		{
+			name: "getdescriptorinfo",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("getdescriptorinfo", "123")
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewGetDescriptorInfoCmd("123")
+			},
+			marshalled:   `{"jsonrpc":"1.0","method":"getdescriptorinfo","params":["123"],"id":1}`,
+			unmarshalled: &btcjson.GetDescriptorInfoCmd{Descriptor: "123"},
 		},
 	}
 
