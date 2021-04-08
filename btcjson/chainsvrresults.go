@@ -9,6 +9,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 )
@@ -106,6 +108,7 @@ type GetBlockVerboseTxResult struct {
 	VersionHex    string        `json:"versionHex"`
 	MerkleRoot    string        `json:"merkleroot"`
 	Tx            []TxRawResult `json:"tx,omitempty"`
+	RawTx         []TxRawResult `json:"rawtx,omitempty"` // Deprecated: removed in Bitcoin Core
 	Time          int64         `json:"time"`
 	Nonce         uint32        `json:"nonce"`
 	Bits          string        `json:"bits"`
@@ -232,9 +235,11 @@ type GetBlockChainInfoResult struct {
 	Difficulty           float64 `json:"difficulty"`
 	MedianTime           int64   `json:"mediantime"`
 	VerificationProgress float64 `json:"verificationprogress,omitempty"`
+	InitialBlockDownload bool    `json:"initialblockdownload,omitempty"`
 	Pruned               bool    `json:"pruned"`
 	PruneHeight          int32   `json:"pruneheight,omitempty"`
 	ChainWork            string  `json:"chainwork,omitempty"`
+	SizeOnDisk           int64   `json:"size_on_disk,omitempty"`
 	*SoftForks
 	*UnifiedSoftForks
 }
@@ -255,6 +260,7 @@ type GetBlockFilterResult struct {
 type GetBlockTemplateResultTx struct {
 	Data    string  `json:"data"`
 	Hash    string  `json:"hash"`
+	TxID    string  `json:"txid"`
 	Depends []int64 `json:"depends"`
 	Fee     int64   `json:"fee"`
 	SigOps  int64   `json:"sigops"`
@@ -382,6 +388,16 @@ type GetNetworkInfoResult struct {
 	Warnings        string                 `json:"warnings"`
 }
 
+// GetNodeAddressesResult models the data returned from the getnodeaddresses
+// command.
+type GetNodeAddressesResult struct {
+	// Timestamp in seconds since epoch (Jan 1 1970 GMT) keeping track of when the node was last seen
+	Time     int64  `json:"time"`
+	Services uint64 `json:"services"` // The services offered
+	Address  string `json:"address"`  // The address of the node
+	Port     uint16 `json:"port"`     // The port of the node
+}
+
 // GetPeerInfoResult models the data returned from the getpeerinfo command.
 type GetPeerInfoResult struct {
 	ID             int32   `json:"id"`
@@ -439,6 +455,64 @@ type GetTxOutResult struct {
 	Value         float64            `json:"value"`
 	ScriptPubKey  ScriptPubKeyResult `json:"scriptPubKey"`
 	Coinbase      bool               `json:"coinbase"`
+}
+
+// GetTxOutSetInfoResult models the data from the gettxoutsetinfo command.
+type GetTxOutSetInfoResult struct {
+	Height         int64          `json:"height"`
+	BestBlock      chainhash.Hash `json:"bestblock"`
+	Transactions   int64          `json:"transactions"`
+	TxOuts         int64          `json:"txouts"`
+	BogoSize       int64          `json:"bogosize"`
+	HashSerialized chainhash.Hash `json:"hash_serialized_2"`
+	DiskSize       int64          `json:"disk_size"`
+	TotalAmount    btcutil.Amount `json:"total_amount"`
+}
+
+// UnmarshalJSON unmarshals the result of the gettxoutsetinfo JSON-RPC call
+func (g *GetTxOutSetInfoResult) UnmarshalJSON(data []byte) error {
+	// Step 1: Create type aliases of the original struct.
+	type Alias GetTxOutSetInfoResult
+
+	// Step 2: Create an anonymous struct with raw replacements for the special
+	// fields.
+	aux := &struct {
+		BestBlock      string  `json:"bestblock"`
+		HashSerialized string  `json:"hash_serialized_2"`
+		TotalAmount    float64 `json:"total_amount"`
+		*Alias
+	}{
+		Alias: (*Alias)(g),
+	}
+
+	// Step 3: Unmarshal the data into the anonymous struct.
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Step 4: Convert the raw fields to the desired types
+	blockHash, err := chainhash.NewHashFromStr(aux.BestBlock)
+	if err != nil {
+		return err
+	}
+
+	g.BestBlock = *blockHash
+
+	serializedHash, err := chainhash.NewHashFromStr(aux.HashSerialized)
+	if err != nil {
+		return err
+	}
+
+	g.HashSerialized = *serializedHash
+
+	amount, err := btcutil.NewAmount(aux.TotalAmount)
+	if err != nil {
+		return err
+	}
+
+	g.TotalAmount = amount
+
+	return nil
 }
 
 // GetNetTotalsResult models the data returned from the getnettotals command.
@@ -619,8 +693,8 @@ type GetMiningInfoResult struct {
 	Errors             string  `json:"errors"`
 	Generate           bool    `json:"generate"`
 	GenProcLimit       int32   `json:"genproclimit"`
-	HashesPerSec       int64   `json:"hashespersec"`
-	NetworkHashPS      int64   `json:"networkhashps"`
+	HashesPerSec       float64 `json:"hashespersec"`
+	NetworkHashPS      float64 `json:"networkhashps"`
 	PooledTx           uint64  `json:"pooledtx"`
 	TestNet            bool    `json:"testnet"`
 }
@@ -770,4 +844,18 @@ type GetDescriptorInfoResult struct {
 	IsRange        bool   `json:"isrange"`        // whether the descriptor is ranged
 	IsSolvable     bool   `json:"issolvable"`     // whether the descriptor is solvable
 	HasPrivateKeys bool   `json:"hasprivatekeys"` // whether the descriptor has at least one private key
+}
+
+// DeriveAddressesResult models the data from the deriveaddresses command.
+type DeriveAddressesResult []string
+
+// LoadWalletResult models the data from the loadwallet command
+type LoadWalletResult struct {
+	Name    string `json:"name"`
+	Warning string `json:"warning"`
+}
+
+// DumpWalletResult models the data from the dumpwallet command
+type DumpWalletResult struct {
+	Filename string `json:"filename"`
 }

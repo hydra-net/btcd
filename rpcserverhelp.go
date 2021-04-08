@@ -181,6 +181,8 @@ var helpDescsEnUS = map[string]string{
 	"getblockchaininforesult-pruned":               "A bool that indicates if the node is pruned or not",
 	"getblockchaininforesult-pruneheight":          "The lowest block retained in the current pruned chain",
 	"getblockchaininforesult-chainwork":            "The total cumulative work in the best chain",
+	"getblockchaininforesult-size_on_disk":         "The estimated size of the block and undo files on disk",
+	"getblockchaininforesult-initialblockdownload": "Estimate of whether this node is in Initial Block Download mode",
 	"getblockchaininforesult-softforks":            "The status of the super-majority soft-forks",
 	"getblockchaininforesult-unifiedsoftforks":     "The status of the super-majority soft-forks used by bitcoind on or after v0.19.0",
 
@@ -295,6 +297,7 @@ var helpDescsEnUS = map[string]string{
 	"templaterequest-target":       "The desired target for the block template (this parameter is ignored)",
 	"templaterequest-data":         "Hex-encoded block data (only for mode=proposal)",
 	"templaterequest-workid":       "The server provided workid if provided in block template (not applicable)",
+	"templaterequest-rules":        "Specific block rules that are to be enforced e.g. '[\"segwit\"]",
 
 	// GetBlockTemplateResultTx help.
 	"getblocktemplateresulttx-data":    "Hex-encoded transaction data (byte-for-byte)",
@@ -302,6 +305,7 @@ var helpDescsEnUS = map[string]string{
 	"getblocktemplateresulttx-depends": "Other transactions before this one (by 1-based index in the 'transactions'  list) that must be present in the final block if this one is",
 	"getblocktemplateresulttx-fee":     "Difference in value between transaction inputs and outputs (in Satoshi)",
 	"getblocktemplateresulttx-sigops":  "Total number of signature operations as counted for purposes of block limits",
+	"getblocktemplateresulttx-txid":    "The transaction id, can be different from hash.",
 	"getblocktemplateresulttx-weight":  "The weight of the transaction",
 
 	// GetBlockTemplateResultAux help.
@@ -452,6 +456,17 @@ var helpDescsEnUS = map[string]string{
 	"getnettotalsresult-totalbytessent": "Total bytes sent",
 	"getnettotalsresult-timemillis":     "Number of milliseconds since 1 Jan 1970 GMT",
 
+	// GetNodeAddressesResult help.
+	"getnodeaddressesresult-time":     "Timestamp in seconds since epoch (Jan 1 1970 GMT) keeping track of when the node was last seen",
+	"getnodeaddressesresult-services": "The services offered",
+	"getnodeaddressesresult-address":  "The address of the node",
+	"getnodeaddressesresult-port":     "The port of the node",
+
+	// GetNodeAddressesCmd help.
+	"getnodeaddresses--synopsis": "Return known addresses which can potentially be used to find new nodes in the network",
+	"getnodeaddresses-count":     "How many addresses to return. Limited to the smaller of 2500 or 23% of all known addresses",
+	"getnodeaddresses--result0":  "List of node addresses",
+
 	// GetPeerInfoResult help.
 	"getpeerinforesult-id":             "A unique node ID",
 	"getpeerinforesult-addr":           "The ip address and port of the peer",
@@ -548,11 +563,11 @@ var helpDescsEnUS = map[string]string{
 	"searchrawtransactions--result0":    "Hex-encoded serialized transaction",
 
 	// SendRawTransactionCmd help.
-	"sendrawtransaction--synopsis":     "Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.",
-	"sendrawtransaction-hextx":         "Serialized, hex-encoded signed transaction",
-	"sendrawtransaction-allowhighfees": "Whether or not to allow insanely high fees (btcd does not yet implement this parameter, so it has no effect)",
-	"sendrawtransaction-maxfeerate":    "Used by bitcoind on or after v0.19.0",
-	"sendrawtransaction--result0":      "The hash of the transaction",
+	"sendrawtransaction--synopsis":    "Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.",
+	"sendrawtransaction-hextx":        "Serialized, hex-encoded signed transaction",
+	"sendrawtransaction-feesetting":   "Whether or not to allow insanely high fees in bitcoind < v0.19.0 or the max fee rate for bitcoind v0.19.0 and later (btcd does not yet implement this parameter, so it has no effect)",
+	"sendrawtransaction--result0":     "The hash of the transaction",
+	"allowhighfeesormaxfeerate-value": "Either the boolean value for the allowhighfees parameter in bitcoind < v0.19.0 or the numerical value for the maxfeerate field in bitcoind v0.19.0 and later",
 
 	// SetGenerateCmd help.
 	"setgenerate--synopsis":    "Set the server to generate coins (mine) or not.",
@@ -726,6 +741,7 @@ var rpcResultTypes = map[string][]interface{}{
 	"getmininginfo":          {(*btcjson.GetMiningInfoResult)(nil)},
 	"getnettotals":           {(*btcjson.GetNetTotalsResult)(nil)},
 	"getnetworkhashps":       {(*int64)(nil)},
+	"getnodeaddresses":       {(*[]btcjson.GetNodeAddressesResult)(nil)},
 	"getpeerinfo":            {(*[]btcjson.GetPeerInfoResult)(nil)},
 	"getrawmempool":          {(*[]string)(nil), (*btcjson.GetRawMempoolVerboseResult)(nil)},
 	"getrawtransaction":      {(*string)(nil), (*btcjson.TxRawResult)(nil)},

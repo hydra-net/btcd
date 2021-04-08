@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/btcsuite/btcd/wire"
 )
@@ -80,37 +81,6 @@ func NewCreateRawTransactionCmd(inputs []TransactionInput, amounts map[string]fl
 	}
 }
 
-// FundRawTransactionOpts are the different options that can be passed to rawtransaction
-type FundRawTransactionOpts struct {
-	ChangeAddress          *string               `json:"changeAddress,omitempty"`
-	ChangePosition         *int                  `json:"changePosition,omitempty"`
-	ChangeType             *string               `json:"change_type,omitempty"`
-	IncludeWatching        *bool                 `json:"includeWatching,omitempty"`
-	LockUnspents           *bool                 `json:"lockUnspents,omitempty"`
-	FeeRate                *float64              `json:"feeRate,omitempty"` // BTC/kB
-	SubtractFeeFromOutputs []int                 `json:"subtractFeeFromOutputs,omitempty"`
-	Replaceable            *bool                 `json:"replaceable,omitempty"`
-	ConfTarget             *int                  `json:"conf_target,omitempty"`
-	EstimateMode           *EstimateSmartFeeMode `json:"estimate_mode,omitempty"`
-}
-
-// FundRawTransactionCmd defines the fundrawtransaction JSON-RPC command
-type FundRawTransactionCmd struct {
-	HexTx     string
-	Options   FundRawTransactionOpts
-	IsWitness *bool
-}
-
-// NewFundRawTransactionCmd returns a new instance which can be used to issue
-// a fundrawtransaction JSON-RPC command
-func NewFundRawTransactionCmd(serializedTx []byte, opts FundRawTransactionOpts, isWitness *bool) *FundRawTransactionCmd {
-	return &FundRawTransactionCmd{
-		HexTx:     hex.EncodeToString(serializedTx),
-		Options:   opts,
-		IsWitness: isWitness,
-	}
-}
-
 // DecodeRawTransactionCmd defines the decoderawtransaction JSON-RPC command.
 type DecodeRawTransactionCmd struct {
 	HexTx string
@@ -134,6 +104,65 @@ type DecodeScriptCmd struct {
 func NewDecodeScriptCmd(hexScript string) *DecodeScriptCmd {
 	return &DecodeScriptCmd{
 		HexScript: hexScript,
+	}
+}
+
+// DeriveAddressesCmd defines the deriveaddresses JSON-RPC command.
+type DeriveAddressesCmd struct {
+	Descriptor string
+	Range      *DescriptorRange
+}
+
+// NewDeriveAddressesCmd returns a new instance which can be used to issue a
+// deriveaddresses JSON-RPC command.
+func NewDeriveAddressesCmd(descriptor string, descriptorRange *DescriptorRange) *DeriveAddressesCmd {
+	return &DeriveAddressesCmd{
+		Descriptor: descriptor,
+		Range:      descriptorRange,
+	}
+}
+
+// ChangeType defines the different output types to use for the change address
+// of a transaction built by the node.
+type ChangeType string
+
+var (
+	// ChangeTypeLegacy indicates a P2PKH change address type.
+	ChangeTypeLegacy ChangeType = "legacy"
+	// ChangeTypeP2SHSegWit indicates a P2WPKH-in-P2SH change address type.
+	ChangeTypeP2SHSegWit ChangeType = "p2sh-segwit"
+	// ChangeTypeBech32 indicates a P2WPKH change address type.
+	ChangeTypeBech32 ChangeType = "bech32"
+)
+
+// FundRawTransactionOpts are the different options that can be passed to rawtransaction
+type FundRawTransactionOpts struct {
+	ChangeAddress          *string               `json:"changeAddress,omitempty"`
+	ChangePosition         *int                  `json:"changePosition,omitempty"`
+	ChangeType             *ChangeType           `json:"change_type,omitempty"`
+	IncludeWatching        *bool                 `json:"includeWatching,omitempty"`
+	LockUnspents           *bool                 `json:"lockUnspents,omitempty"`
+	FeeRate                *float64              `json:"feeRate,omitempty"` // BTC/kB
+	SubtractFeeFromOutputs []int                 `json:"subtractFeeFromOutputs,omitempty"`
+	Replaceable            *bool                 `json:"replaceable,omitempty"`
+	ConfTarget             *int                  `json:"conf_target,omitempty"`
+	EstimateMode           *EstimateSmartFeeMode `json:"estimate_mode,omitempty"`
+}
+
+// FundRawTransactionCmd defines the fundrawtransaction JSON-RPC command
+type FundRawTransactionCmd struct {
+	HexTx     string
+	Options   FundRawTransactionOpts
+	IsWitness *bool
+}
+
+// NewFundRawTransactionCmd returns a new instance which can be used to issue
+// a fundrawtransaction JSON-RPC command
+func NewFundRawTransactionCmd(serializedTx []byte, opts FundRawTransactionOpts, isWitness *bool) *FundRawTransactionCmd {
+	return &FundRawTransactionCmd{
+		HexTx:     hex.EncodeToString(serializedTx),
+		Options:   opts,
+		IsWitness: isWitness,
 	}
 }
 
@@ -331,6 +360,10 @@ type TemplateRequest struct {
 	// "proposal".
 	Data   string `json:"data,omitempty"`
 	WorkID string `json:"workid,omitempty"`
+
+	// list of supported softfork deployments, by name
+	// Ref: https://en.bitcoin.it/wiki/BIP_0009#getblocktemplate_changes.
+	Rules []string `json:"rules,omitempty"`
 }
 
 // convertTemplateRequestField potentially converts the provided value as
@@ -463,6 +496,19 @@ func NewGetConnectionCountCmd() *GetConnectionCountCmd {
 	return &GetConnectionCountCmd{}
 }
 
+// GetDescriptorInfoCmd defines the getdescriptorinfo JSON-RPC command.
+type GetDescriptorInfoCmd struct {
+	Descriptor string
+}
+
+// NewGetDescriptorInfoCmd returns a new instance which can be used to issue a
+// getdescriptorinfo JSON-RPC command.
+func NewGetDescriptorInfoCmd(descriptor string) *GetDescriptorInfoCmd {
+	return &GetDescriptorInfoCmd{
+		Descriptor: descriptor,
+	}
+}
+
 // GetDifficultyCmd defines the getdifficulty JSON-RPC command.
 type GetDifficultyCmd struct{}
 
@@ -563,6 +609,22 @@ func NewGetNetworkHashPSCmd(numBlocks, height *int) *GetNetworkHashPSCmd {
 	return &GetNetworkHashPSCmd{
 		Blocks: numBlocks,
 		Height: height,
+	}
+}
+
+// GetNodeAddressesCmd defines the getnodeaddresses JSON-RPC command.
+type GetNodeAddressesCmd struct {
+	Count *int32 `jsonrpcdefault:"1"`
+}
+
+// NewGetNodeAddressesCmd returns a new instance which can be used to issue a
+// getnodeaddresses JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+func NewGetNodeAddressesCmd(count *int32) *GetNodeAddressesCmd {
+	return &GetNodeAddressesCmd{
+		Count: count,
 	}
 }
 
@@ -767,11 +829,60 @@ func NewSearchRawTransactionsCmd(address string, verbose, skip, count *int, vinE
 	}
 }
 
+// AllowHighFeesOrMaxFeeRate defines a type that can either be the legacy
+// allowhighfees boolean field or the new maxfeerate int field.
+type AllowHighFeesOrMaxFeeRate struct {
+	Value interface{}
+}
+
+// String returns the string representation of this struct, used for printing
+// the marshaled default value in the help text.
+func (a AllowHighFeesOrMaxFeeRate) String() string {
+	b, _ := a.MarshalJSON()
+	return string(b)
+}
+
+// MarshalJSON implements the json.Marshaler interface
+func (a AllowHighFeesOrMaxFeeRate) MarshalJSON() ([]byte, error) {
+	// The default value is false which only works with the legacy versions.
+	if a.Value == nil ||
+		(reflect.ValueOf(a.Value).Kind() == reflect.Ptr &&
+			reflect.ValueOf(a.Value).IsNil()) {
+
+		return json.Marshal(false)
+	}
+
+	return json.Marshal(a.Value)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface
+func (a *AllowHighFeesOrMaxFeeRate) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	var unmarshalled interface{}
+	if err := json.Unmarshal(data, &unmarshalled); err != nil {
+		return err
+	}
+
+	switch v := unmarshalled.(type) {
+	case bool:
+		a.Value = Bool(v)
+	case float64:
+		a.Value = Int32(int32(v))
+	default:
+		return fmt.Errorf("invalid allowhighfees or maxfeerate value: "+
+			"%v", unmarshalled)
+	}
+
+	return nil
+}
+
 // SendRawTransactionCmd defines the sendrawtransaction JSON-RPC command.
 type SendRawTransactionCmd struct {
-	HexTx         string
-	AllowHighFees *bool `jsonrpcdefault:"false"`
-	MaxFeeRate    *int32
+	HexTx      string
+	FeeSetting *AllowHighFeesOrMaxFeeRate `jsonrpcdefault:"false"`
 }
 
 // NewSendRawTransactionCmd returns a new instance which can be used to issue a
@@ -781,8 +892,10 @@ type SendRawTransactionCmd struct {
 // for optional parameters will use the default value.
 func NewSendRawTransactionCmd(hexTx string, allowHighFees *bool) *SendRawTransactionCmd {
 	return &SendRawTransactionCmd{
-		HexTx:         hexTx,
-		AllowHighFees: allowHighFees,
+		HexTx: hexTx,
+		FeeSetting: &AllowHighFeesOrMaxFeeRate{
+			Value: allowHighFees,
+		},
 	}
 }
 
@@ -792,8 +905,10 @@ func NewSendRawTransactionCmd(hexTx string, allowHighFees *bool) *SendRawTransac
 // A 0 maxFeeRate indicates that a maximum fee rate won't be enforced.
 func NewBitcoindSendRawTransactionCmd(hexTx string, maxFeeRate int32) *SendRawTransactionCmd {
 	return &SendRawTransactionCmd{
-		HexTx:      hexTx,
-		MaxFeeRate: &maxFeeRate,
+		HexTx: hexTx,
+		FeeSetting: &AllowHighFeesOrMaxFeeRate{
+			Value: &maxFeeRate,
+		},
 	}
 }
 
@@ -936,28 +1051,16 @@ func NewVerifyTxOutProofCmd(proof string) *VerifyTxOutProofCmd {
 	}
 }
 
-// GetDescriptorInfoCmd defines the getdescriptorinfo JSON-RPC command.
-type GetDescriptorInfoCmd struct {
-	Descriptor string
-}
-
-// NewGetDescriptorInfoCmd returns a new instance which can be used to issue a
-// getdescriptorinfo JSON-RPC command.
-func NewGetDescriptorInfoCmd(descriptor string) *GetDescriptorInfoCmd {
-	return &GetDescriptorInfoCmd{
-		Descriptor: descriptor,
-	}
-}
-
 func init() {
 	// No special flags for commands in this file.
 	flags := UsageFlag(0)
 
 	MustRegisterCmd("addnode", (*AddNodeCmd)(nil), flags)
 	MustRegisterCmd("createrawtransaction", (*CreateRawTransactionCmd)(nil), flags)
-	MustRegisterCmd("fundrawtransaction", (*FundRawTransactionCmd)(nil), flags)
 	MustRegisterCmd("decoderawtransaction", (*DecodeRawTransactionCmd)(nil), flags)
 	MustRegisterCmd("decodescript", (*DecodeScriptCmd)(nil), flags)
+	MustRegisterCmd("deriveaddresses", (*DeriveAddressesCmd)(nil), flags)
+	MustRegisterCmd("fundrawtransaction", (*FundRawTransactionCmd)(nil), flags)
 	MustRegisterCmd("getaddednodeinfo", (*GetAddedNodeInfoCmd)(nil), flags)
 	MustRegisterCmd("getbestblockhash", (*GetBestBlockHashCmd)(nil), flags)
 	MustRegisterCmd("getblock", (*GetBlockCmd)(nil), flags)
@@ -974,6 +1077,7 @@ func init() {
 	MustRegisterCmd("getchaintips", (*GetChainTipsCmd)(nil), flags)
 	MustRegisterCmd("getchaintxstats", (*GetChainTxStatsCmd)(nil), flags)
 	MustRegisterCmd("getconnectioncount", (*GetConnectionCountCmd)(nil), flags)
+	MustRegisterCmd("getdescriptorinfo", (*GetDescriptorInfoCmd)(nil), flags)
 	MustRegisterCmd("getdifficulty", (*GetDifficultyCmd)(nil), flags)
 	MustRegisterCmd("getgenerate", (*GetGenerateCmd)(nil), flags)
 	MustRegisterCmd("gethashespersec", (*GetHashesPerSecCmd)(nil), flags)
@@ -984,6 +1088,7 @@ func init() {
 	MustRegisterCmd("getnetworkinfo", (*GetNetworkInfoCmd)(nil), flags)
 	MustRegisterCmd("getnettotals", (*GetNetTotalsCmd)(nil), flags)
 	MustRegisterCmd("getnetworkhashps", (*GetNetworkHashPSCmd)(nil), flags)
+	MustRegisterCmd("getnodeaddresses", (*GetNodeAddressesCmd)(nil), flags)
 	MustRegisterCmd("getpeerinfo", (*GetPeerInfoCmd)(nil), flags)
 	MustRegisterCmd("getrawmempool", (*GetRawMempoolCmd)(nil), flags)
 	MustRegisterCmd("getrawtransaction", (*GetRawTransactionCmd)(nil), flags)
@@ -1007,5 +1112,4 @@ func init() {
 	MustRegisterCmd("verifychain", (*VerifyChainCmd)(nil), flags)
 	MustRegisterCmd("verifymessage", (*VerifyMessageCmd)(nil), flags)
 	MustRegisterCmd("verifytxoutproof", (*VerifyTxOutProofCmd)(nil), flags)
-	MustRegisterCmd("getdescriptorinfo", (*GetDescriptorInfoCmd)(nil), flags)
 }

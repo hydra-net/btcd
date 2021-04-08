@@ -1,4 +1,4 @@
-// Copyright (c) 2014 The btcsuite developers
+// Copyright (c) 2014-2020 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,8 +8,11 @@
 package btcjson
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
+	"github.com/btcsuite/btcutil"
 )
 
 // AddMultisigAddressCmd defines the addmutisigaddress JSON-RPC command.
@@ -57,6 +60,28 @@ func NewCreateMultisigCmd(nRequired int, keys []string) *CreateMultisigCmd {
 	return &CreateMultisigCmd{
 		NRequired: nRequired,
 		Keys:      keys,
+	}
+}
+
+// CreateWalletCmd defines the createwallet JSON-RPC command.
+type CreateWalletCmd struct {
+	WalletName         string
+	DisablePrivateKeys *bool   `jsonrpcdefault:"false"`
+	Blank              *bool   `jsonrpcdefault:"false"`
+	Passphrase         *string `jsonrpcdefault:"\"\""`
+	AvoidReuse         *bool   `jsonrpcdefault:"false"`
+}
+
+// NewCreateWalletCmd returns a new instance which can be used to issue a
+// createwallet JSON-RPC command.
+func NewCreateWalletCmd(walletName string, disablePrivateKeys *bool,
+	blank *bool, passphrase *string, avoidReuse *bool) *CreateWalletCmd {
+	return &CreateWalletCmd{
+		WalletName:         walletName,
+		DisablePrivateKeys: disablePrivateKeys,
+		Blank:              blank,
+		Passphrase:         passphrase,
+		AvoidReuse:         avoidReuse,
 	}
 }
 
@@ -172,6 +197,19 @@ type GetAddressesByAccountCmd struct {
 func NewGetAddressesByAccountCmd(account string) *GetAddressesByAccountCmd {
 	return &GetAddressesByAccountCmd{
 		Account: account,
+	}
+}
+
+// GetAddressInfoCmd defines the getaddressinfo JSON-RPC command.
+type GetAddressInfoCmd struct {
+	Address string
+}
+
+// NewGetAddressInfoCmd returns a new instance which can be used to issue a
+// getaddressinfo JSON-RPC command.
+func NewGetAddressInfoCmd(address string) *GetAddressInfoCmd {
+	return &GetAddressInfoCmd{
+		Address: address,
 	}
 }
 
@@ -295,6 +333,39 @@ type GetWalletInfoCmd struct{}
 // getwalletinfo JSON-RPC command.
 func NewGetWalletInfoCmd() *GetWalletInfoCmd {
 	return &GetWalletInfoCmd{}
+}
+
+// BackupWalletCmd defines the backupwallet JSON-RPC command
+type BackupWalletCmd struct {
+	Destination string
+}
+
+// NewBackupWalletCmd returns a new instance which can be used to issue a
+// backupwallet JSON-RPC command
+func NewBackupWalletCmd(destination string) *BackupWalletCmd {
+	return &BackupWalletCmd{Destination: destination}
+}
+
+// UnloadWalletCmd defines the unloadwallet JSON-RPC command
+type UnloadWalletCmd struct {
+	WalletName *string
+}
+
+// NewUnloadWalletCmd returns a new instance which can be used to issue a
+// unloadwallet JSON-RPC command.
+func NewUnloadWalletCmd(walletName *string) *UnloadWalletCmd {
+	return &UnloadWalletCmd{WalletName: walletName}
+}
+
+// LoadWalletCmd defines the loadwallet JSON-RPC command
+type LoadWalletCmd struct {
+	WalletName string
+}
+
+// NewLoadWalletCmd returns a new instance which can be used to issue a
+// loadwallet JSON-RPC command
+func NewLoadWalletCmd(walletName string) *LoadWalletCmd {
+	return &LoadWalletCmd{WalletName: walletName}
 }
 
 // ImportPrivKeyCmd defines the importprivkey JSON-RPC command.
@@ -652,6 +723,39 @@ func NewSignRawTransactionCmd(hexEncodedTx string, inputs *[]RawTxInput, privKey
 	}
 }
 
+// RawTxWitnessInput models the data needed for raw transaction input that is used in
+// the SignRawTransactionWithWalletCmd struct. The RedeemScript is required for P2SH inputs,
+// the WitnessScript is required for P2WSH or P2SH-P2WSH witness scripts, and the Amount is
+// required for Segwit inputs. Otherwise, those fields can be left blank.
+type RawTxWitnessInput struct {
+	Txid          string   `json:"txid"`
+	Vout          uint32   `json:"vout"`
+	ScriptPubKey  string   `json:"scriptPubKey"`
+	RedeemScript  *string  `json:"redeemScript,omitempty"`
+	WitnessScript *string  `json:"witnessScript,omitempty"`
+	Amount        *float64 `json:"amount,omitempty"` // In BTC
+}
+
+// SignRawTransactionWithWalletCmd defines the signrawtransactionwithwallet JSON-RPC command.
+type SignRawTransactionWithWalletCmd struct {
+	RawTx       string
+	Inputs      *[]RawTxWitnessInput
+	SigHashType *string `jsonrpcdefault:"\"ALL\""`
+}
+
+// NewSignRawTransactionWithWalletCmd returns a new instance which can be used to issue a
+// signrawtransactionwithwallet JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+func NewSignRawTransactionWithWalletCmd(hexEncodedTx string, inputs *[]RawTxWitnessInput, sigHashType *string) *SignRawTransactionWithWalletCmd {
+	return &SignRawTransactionWithWalletCmd{
+		RawTx:       hexEncodedTx,
+		Inputs:      inputs,
+		SigHashType: sigHashType,
+	}
+}
+
 // WalletLockCmd defines the walletlock JSON-RPC command.
 type WalletLockCmd struct{}
 
@@ -906,13 +1010,97 @@ func NewImportMultiCmd(requests []ImportMultiRequest, options *ImportMultiOption
 	}
 }
 
+// PsbtInput represents an input to include in the PSBT created by the
+// WalletCreateFundedPsbtCmd command.
+type PsbtInput struct {
+	Txid     string `json:"txid"`
+	Vout     uint32 `json:"vout"`
+	Sequence uint32 `json:"sequence"`
+}
+
+// PsbtOutput represents an output to include in the PSBT created by the
+// WalletCreateFundedPsbtCmd command.
+type PsbtOutput map[string]interface{}
+
+// NewPsbtOutput returns a new instance of a PSBT output to use with the
+// WalletCreateFundedPsbtCmd command.
+func NewPsbtOutput(address string, amount btcutil.Amount) PsbtOutput {
+	return PsbtOutput{address: amount.ToBTC()}
+}
+
+// NewPsbtDataOutput returns a new instance of a PSBT data output to use with
+// the WalletCreateFundedPsbtCmd command.
+func NewPsbtDataOutput(data []byte) PsbtOutput {
+	return PsbtOutput{"data": hex.EncodeToString(data)}
+}
+
+// WalletCreateFundedPsbtOpts represents the optional options struct provided
+// with a WalletCreateFundedPsbtCmd command.
+type WalletCreateFundedPsbtOpts struct {
+	ChangeAddress          *string     `json:"changeAddress,omitempty"`
+	ChangePosition         *int64      `json:"changePosition,omitempty"`
+	ChangeType             *ChangeType `json:"change_type,omitempty"`
+	IncludeWatching        *bool       `json:"includeWatching,omitempty"`
+	LockUnspents           *bool       `json:"lockUnspents,omitempty"`
+	FeeRate                *int64      `json:"feeRate,omitempty"`
+	SubtractFeeFromOutputs *[]int64    `json:"subtractFeeFromOutputs,omitempty"`
+	Replaceable            *bool       `json:"replaceable,omitempty"`
+	ConfTarget             *int64      `json:"conf_target,omitempty"`
+	EstimateMode           *string     `json:"estimate_mode,omitempty"`
+}
+
+// WalletCreateFundedPsbtCmd defines the walletcreatefundedpsbt JSON-RPC command.
+type WalletCreateFundedPsbtCmd struct {
+	Inputs      []PsbtInput
+	Outputs     []PsbtOutput
+	Locktime    *uint32
+	Options     *WalletCreateFundedPsbtOpts
+	Bip32Derivs *bool
+}
+
+// NewWalletCreateFundedPsbtCmd returns a new instance which can be used to issue a
+// walletcreatefundedpsbt JSON-RPC command.
+func NewWalletCreateFundedPsbtCmd(
+	inputs []PsbtInput, outputs []PsbtOutput, locktime *uint32,
+	options *WalletCreateFundedPsbtOpts, bip32Derivs *bool,
+) *WalletCreateFundedPsbtCmd {
+	return &WalletCreateFundedPsbtCmd{
+		Inputs:      inputs,
+		Outputs:     outputs,
+		Locktime:    locktime,
+		Options:     options,
+		Bip32Derivs: bip32Derivs,
+	}
+}
+
+// WalletProcessPsbtCmd defines the walletprocesspsbt JSON-RPC command.
+type WalletProcessPsbtCmd struct {
+	Psbt        string
+	Sign        *bool   `jsonrpcdefault:"true"`
+	SighashType *string `jsonrpcdefault:"\"ALL\""`
+	Bip32Derivs *bool
+}
+
+// NewWalletProcessPsbtCmd returns a new instance which can be used to issue a
+// walletprocesspsbt JSON-RPC command.
+func NewWalletProcessPsbtCmd(psbt string, sign *bool, sighashType *string, bip32Derivs *bool) *WalletProcessPsbtCmd {
+	return &WalletProcessPsbtCmd{
+		Psbt:        psbt,
+		Sign:        sign,
+		SighashType: sighashType,
+		Bip32Derivs: bip32Derivs,
+	}
+}
+
 func init() {
 	// The commands in this file are only usable with a wallet server.
 	flags := UFWalletOnly
 
 	MustRegisterCmd("addmultisigaddress", (*AddMultisigAddressCmd)(nil), flags)
 	MustRegisterCmd("addwitnessaddress", (*AddWitnessAddressCmd)(nil), flags)
+	MustRegisterCmd("backupwallet", (*BackupWalletCmd)(nil), flags)
 	MustRegisterCmd("createmultisig", (*CreateMultisigCmd)(nil), flags)
+	MustRegisterCmd("createwallet", (*CreateWalletCmd)(nil), flags)
 	MustRegisterCmd("dumpprivkey", (*DumpPrivKeyCmd)(nil), flags)
 	MustRegisterCmd("encryptwallet", (*EncryptWalletCmd)(nil), flags)
 	MustRegisterCmd("estimatesmartfee", (*EstimateSmartFeeCmd)(nil), flags)
@@ -921,6 +1109,7 @@ func init() {
 	MustRegisterCmd("getaccount", (*GetAccountCmd)(nil), flags)
 	MustRegisterCmd("getaccountaddress", (*GetAccountAddressCmd)(nil), flags)
 	MustRegisterCmd("getaddressesbyaccount", (*GetAddressesByAccountCmd)(nil), flags)
+	MustRegisterCmd("getaddressinfo", (*GetAddressInfoCmd)(nil), flags)
 	MustRegisterCmd("getbalance", (*GetBalanceCmd)(nil), flags)
 	MustRegisterCmd("getbalances", (*GetBalancesCmd)(nil), flags)
 	MustRegisterCmd("getnewaddress", (*GetNewAddressCmd)(nil), flags)
@@ -940,6 +1129,7 @@ func init() {
 	MustRegisterCmd("listsinceblock", (*ListSinceBlockCmd)(nil), flags)
 	MustRegisterCmd("listtransactions", (*ListTransactionsCmd)(nil), flags)
 	MustRegisterCmd("listunspent", (*ListUnspentCmd)(nil), flags)
+	MustRegisterCmd("loadwallet", (*LoadWalletCmd)(nil), flags)
 	MustRegisterCmd("lockunspent", (*LockUnspentCmd)(nil), flags)
 	MustRegisterCmd("move", (*MoveCmd)(nil), flags)
 	MustRegisterCmd("sendfrom", (*SendFromCmd)(nil), flags)
@@ -949,7 +1139,11 @@ func init() {
 	MustRegisterCmd("settxfee", (*SetTxFeeCmd)(nil), flags)
 	MustRegisterCmd("signmessage", (*SignMessageCmd)(nil), flags)
 	MustRegisterCmd("signrawtransaction", (*SignRawTransactionCmd)(nil), flags)
+	MustRegisterCmd("signrawtransactionwithwallet", (*SignRawTransactionWithWalletCmd)(nil), flags)
+	MustRegisterCmd("unloadwallet", (*UnloadWalletCmd)(nil), flags)
 	MustRegisterCmd("walletlock", (*WalletLockCmd)(nil), flags)
 	MustRegisterCmd("walletpassphrase", (*WalletPassphraseCmd)(nil), flags)
 	MustRegisterCmd("walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil), flags)
+	MustRegisterCmd("walletcreatefundedpsbt", (*WalletCreateFundedPsbtCmd)(nil), flags)
+	MustRegisterCmd("walletprocesspsbt", (*WalletProcessPsbtCmd)(nil), flags)
 }
