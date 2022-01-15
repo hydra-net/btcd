@@ -4,6 +4,8 @@ import "Common.proto";
 
 package lightwalletrpc;
 
+option go_package = "./lightwalletrpc";
+
 message GetChainInfoResponse {
     /// The signature for the given message
     string bestBlockHash = 1;
@@ -153,4 +155,6 @@ service LightWalletService {
     rpc LockOutpoint(Outpoint) returns (Empty);
 
     rpc UnlockOutpoint(Outpoint) returns (Empty);
+
+    rpc GetSpendingDetails(Outpoint) returns (GetRawTransactionResponse);
 }

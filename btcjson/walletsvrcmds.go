@@ -805,9 +805,9 @@ type DeriveNextKeyCmds struct {
 }
 
 type KeyDescriptorResult struct {
-	Locator KeyLocator `json:"locator"`
-	HexPubKey string `json:"pubkey"`
-
+	Locator   KeyLocator `json:"locator"`
+	HexPubKey string     `json:"pubkey"`
+}
 // TimestampOrNow defines a type to represent a timestamp value in seconds,
 // since epoch.
 //

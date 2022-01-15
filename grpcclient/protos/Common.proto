@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package lightwalletrpc;
 
+option go_package = "./lightwalletrpc";
+
 message Empty {}
 
 message BlockHeader {

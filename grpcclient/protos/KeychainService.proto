@@ -4,6 +4,8 @@ import "Common.proto";
 
 package lightwalletrpc;
 
+option go_package = "./lightwalletrpc";
+
 message KeyLocator {
     /// The family of key being identified.
     uint32 keyFamily = 1;

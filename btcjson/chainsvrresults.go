@@ -129,6 +129,7 @@ type GetRawFilterResult struct {
 type GetUnspentOutputResult struct {
 	ScriptPubKeyHex string  `json:"scriptpubkeyhex"` // hex string
 	Amount 			int64 	`json:amount`
+}
 
 // GetChainTxStatsResult models the data from the getchaintxstats command.
 type GetChainTxStatsResult struct {
@@ -247,6 +248,7 @@ type GetBlockChainInfoResult struct {
 type GetChainInfoResult struct {
 	BestBlockHash string `json:"bestblockhash"`
 	Height        int32  `json:"headers"`
+}
 
 // GetBlockFilterResult models the data returned from the getblockfilter
 // command.

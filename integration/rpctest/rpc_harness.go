@@ -21,7 +21,6 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/chain"
 )
 
 const (
@@ -206,14 +205,6 @@ func New(activeNet *chaincfg.Params, handlers *rpcclient.NotificationHandlers,
 	} else {
 		handlers.OnFilteredBlockDisconnected = wallet.UnwindBlock
 	}
-
-	lightWalletConn, err := chain.NewLightWalletConn(
-		&chaincfg.MainNetParams, "127.0.0.1:12345",
-		"ross", "ross",
-		"tcp://127.0.0.1:23456", 100*time.Millisecond,
-	)
-
-	client := lightWalletConn.NewLightWalletClient()
 
 	h := &Harness{
 		handlers:               handlers,

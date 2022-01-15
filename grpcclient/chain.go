@@ -132,6 +132,44 @@ func (c *Client) GetUnspentOutput(hash *chainhash.Hash, index uint32) (*btcjson.
 
 ///////////////////////////////////////////////////////////////////////////////
 
+func (c *Client) GetSpendingDetails(hash *chainhash.Hash, index uint32) (*TxConfirmation, error) {
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
+
+	outpoint := &pb.Outpoint {
+		Hash: hash.String(),
+		Index: index,
+	}
+
+	response, err := c.lwClient.GetSpendingDetails(ctx, outpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode the serialized transaction hex to raw bytes.
+	serializedTx, err := hex.DecodeString(response.TransactionHex)
+	if err != nil {
+		return nil, err
+	}
+
+	// Deserialize the transaction and return it.
+	var msgTx wire.MsgTx
+	if err := msgTx.Deserialize(bytes.NewReader(serializedTx)); err != nil {
+		return nil, err
+	}
+
+	blockHash, _ := chainhash.NewHashFromStr(response.BlockHash)
+
+	return &TxConfirmation {
+		Tx: &msgTx,
+		BlockHash: blockHash,
+		BlockHeight: response.BlockHeight,
+		TxIndex: response.TxIndex,
+	}, nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 func (c *Client) GetBlockHeight(hash *chainhash.Hash) (int32, error) {
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second * 30)
