@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"gitlab.com/nitya-sattva/go-x11"
 )
 
 // MaxBlockHeaderPayload is the maximum number of bytes a block header can be.
@@ -69,9 +68,7 @@ func (h *BlockHeader) BlockHash() chainhash.Hash {
 	buf := bytes.NewBuffer(make([]byte, 0, MaxBlockHeaderPayload))
 	_ = writeBlockHeader(buf, 0, h)
 
-	hs, out := x11.New(), [32]byte{}
-	hs.Hash(buf.Bytes(), out[:])
-	return out
+	return chainhash.DoubleHashH(buf.Bytes())
 }
 
 // BtcDecode decodes r using the bitcoin protocol encoding into the receiver.
