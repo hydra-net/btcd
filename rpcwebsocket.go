@@ -20,8 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/ripemd160"
-
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -31,6 +29,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/websocket"
+	"golang.org/x/crypto/ripemd160"
 )
 
 const (
@@ -696,7 +695,7 @@ func (*wsNotificationManager) notifyBlockConnected(clients map[chan struct{}]*ws
 	// Notify interested websocket clients about the connected block.
 	ntfn := btcjson.NewBlockConnectedNtfn(block.Hash().String(), block.Height(),
 		block.MsgBlock().Header.Timestamp.Unix())
-	marshalledJSON, err := btcjson.MarshalCmd(nil, ntfn)
+	marshalledJSON, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, ntfn)
 	if err != nil {
 		rpcsLog.Errorf("Failed to marshal block connected notification: "+
 			"%v", err)
@@ -720,7 +719,7 @@ func (*wsNotificationManager) notifyBlockDisconnected(clients map[chan struct{}]
 	// Notify interested websocket clients about the disconnected block.
 	ntfn := btcjson.NewBlockDisconnectedNtfn(block.Hash().String(),
 		block.Height(), block.MsgBlock().Header.Timestamp.Unix())
-	marshalledJSON, err := btcjson.MarshalCmd(nil, ntfn)
+	marshalledJSON, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, ntfn)
 	if err != nil {
 		rpcsLog.Errorf("Failed to marshal block disconnected "+
 			"notification: %v", err)
@@ -766,7 +765,7 @@ func (m *wsNotificationManager) notifyFilteredBlockConnected(clients map[chan st
 		ntfn.SubscribedTxs = subscribedTxs[quitChan]
 
 		// Marshal and queue notification.
-		marshalledJSON, err := btcjson.MarshalCmd(nil, ntfn)
+		marshalledJSON, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, ntfn)
 		if err != nil {
 			rpcsLog.Errorf("Failed to marshal filtered block "+
 				"connected notification: %v", err)
@@ -797,7 +796,7 @@ func (*wsNotificationManager) notifyFilteredBlockDisconnected(clients map[chan s
 	}
 	ntfn := btcjson.NewFilteredBlockDisconnectedNtfn(block.Height(),
 		hex.EncodeToString(w.Bytes()))
-	marshalledJSON, err := btcjson.MarshalCmd(nil, ntfn)
+	marshalledJSON, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, ntfn)
 	if err != nil {
 		rpcsLog.Errorf("Failed to marshal filtered block disconnected "+
 			"notification: %v", err)
@@ -832,7 +831,7 @@ func (m *wsNotificationManager) notifyForNewTx(clients map[chan struct{}]*wsClie
 	}
 
 	ntfn := btcjson.NewTxAcceptedNtfn(txHashStr, btcutil.Amount(amount).ToBTC())
-	marshalledJSON, err := btcjson.MarshalCmd(nil, ntfn)
+	marshalledJSON, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, ntfn)
 	if err != nil {
 		rpcsLog.Errorf("Failed to marshal tx notification: %s", err.Error())
 		return
@@ -855,7 +854,7 @@ func (m *wsNotificationManager) notifyForNewTx(clients map[chan struct{}]*wsClie
 			}
 
 			verboseNtfn = btcjson.NewTxAcceptedVerboseNtfn(*rawTx)
-			marshalledJSONVerbose, err = btcjson.MarshalCmd(nil,
+			marshalledJSONVerbose, err = btcjson.MarshalCmd(btcjson.RpcVersion1, nil,
 				verboseNtfn)
 			if err != nil {
 				rpcsLog.Errorf("Failed to marshal verbose tx "+
@@ -981,7 +980,7 @@ func blockDetails(block *btcutil.Block, txIndex int) *btcjson.BlockDetails {
 func newRedeemingTxNotification(txHex string, index int, block *btcutil.Block) ([]byte, error) {
 	// Create and marshal the notification.
 	ntfn := btcjson.NewRedeemingTxNtfn(txHex, blockDetails(block, index))
-	return btcjson.MarshalCmd(nil, ntfn)
+	return btcjson.MarshalCmd(btcjson.RpcVersion1, nil, ntfn)
 }
 
 // notifyForTxOuts examines each transaction output, notifying interested
@@ -1017,7 +1016,7 @@ func (m *wsNotificationManager) notifyForTxOuts(ops map[wire.OutPoint]map[chan s
 			ntfn := btcjson.NewRecvTxNtfn(txHex, blockDetails(block,
 				tx.Index()))
 
-			marshalledJSON, err := btcjson.MarshalCmd(nil, ntfn)
+			marshalledJSON, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, ntfn)
 			if err != nil {
 				rpcsLog.Errorf("Failed to marshal processedtx notification: %v", err)
 				continue
@@ -1048,7 +1047,7 @@ func (m *wsNotificationManager) notifyRelevantTxAccepted(tx *btcutil.Tx,
 
 	if len(clientsToNotify) != 0 {
 		n := btcjson.NewRelevantTxAcceptedNtfn(txHexString(tx.MsgTx()))
-		marshalled, err := btcjson.MarshalCmd(nil, n)
+		marshalled, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, n)
 		if err != nil {
 			rpcsLog.Errorf("Failed to marshal notification: %v", err)
 			return
@@ -1324,153 +1323,435 @@ out:
 			break out
 		}
 
-		var request btcjson.Request
-		err = json.Unmarshal(msg, &request)
-		if err != nil {
-			if !c.authenticated {
-				break out
-			}
+		var batchedRequest bool
 
-			jsonErr := &btcjson.RPCError{
-				Code:    btcjson.ErrRPCParse.Code,
-				Message: "Failed to parse request: " + err.Error(),
-			}
-			reply, err := createMarshalledReply(nil, nil, jsonErr)
+		// Determine request type
+		if bytes.HasPrefix(msg, batchedRequestPrefix) {
+			batchedRequest = true
+		}
+
+		if !batchedRequest {
+			var req btcjson.Request
+			var reply json.RawMessage
+			err = json.Unmarshal(msg, &req)
 			if err != nil {
-				rpcsLog.Errorf("Failed to marshal parse failure "+
-					"reply: %v", err)
-				continue
-			}
-			c.SendMessage(reply, nil)
-			continue
-		}
-
-		// The JSON-RPC 1.0 spec defines that notifications must have their "id"
-		// set to null and states that notifications do not have a response.
-		//
-		// A JSON-RPC 2.0 notification is a request with "json-rpc":"2.0", and
-		// without an "id" member. The specification states that notifications
-		// must not be responded to. JSON-RPC 2.0 permits the null value as a
-		// valid request id, therefore such requests are not notifications.
-		//
-		// Bitcoin Core serves requests with "id":null or even an absent "id",
-		// and responds to such requests with "id":null in the response.
-		//
-		// Btcd does not respond to any request without and "id" or "id":null,
-		// regardless the indicated JSON-RPC protocol version unless RPC quirks
-		// are enabled. With RPC quirks enabled, such requests will be responded
-		// to if the reqeust does not indicate JSON-RPC version.
-		//
-		// RPC quirks can be enabled by the user to avoid compatibility issues
-		// with software relying on Core's behavior.
-		if request.ID == nil && !(cfg.RPCQuirks && request.Jsonrpc == "") {
-			if !c.authenticated {
-				break out
-			}
-			continue
-		}
-
-		cmd := parseCmd(&request)
-		if cmd.err != nil {
-			if !c.authenticated {
-				break out
-			}
-
-			reply, err := createMarshalledReply(cmd.id, nil, cmd.err)
-			if err != nil {
-				rpcsLog.Errorf("Failed to marshal parse failure "+
-					"reply: %v", err)
-				continue
-			}
-			c.SendMessage(reply, nil)
-			continue
-		}
-		rpcsLog.Debugf("Received command <%s> from %s", cmd.method, c.addr)
-
-		// Check auth.  The client is immediately disconnected if the
-		// first request of an unauthentiated websocket client is not
-		// the authenticate request, an authenticate request is received
-		// when the client is already authenticated, or incorrect
-		// authentication credentials are provided in the request.
-		switch authCmd, ok := cmd.cmd.(*btcjson.AuthenticateCmd); {
-		case c.authenticated && ok:
-			rpcsLog.Warnf("Websocket client %s is already authenticated",
-				c.addr)
-			break out
-		case !c.authenticated && !ok:
-			rpcsLog.Warnf("Unauthenticated websocket message " +
-				"received")
-			break out
-		case !c.authenticated:
-			// Check credentials.
-			login := authCmd.Username + ":" + authCmd.Passphrase
-			auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(login))
-			authSha := sha256.Sum256([]byte(auth))
-			cmp := subtle.ConstantTimeCompare(authSha[:], c.server.authsha[:])
-			limitcmp := subtle.ConstantTimeCompare(authSha[:], c.server.limitauthsha[:])
-			if cmp != 1 && limitcmp != 1 {
-				rpcsLog.Warnf("Auth failure.")
-				break out
-			}
-			c.authenticated = true
-			c.isAdmin = cmp == 1
-
-			// Marshal and send response.
-			reply, err := createMarshalledReply(cmd.id, nil, nil)
-			if err != nil {
-				rpcsLog.Errorf("Failed to marshal authenticate reply: "+
-					"%v", err.Error())
-				continue
-			}
-			c.SendMessage(reply, nil)
-			continue
-		}
-
-		// Check if the client is using limited RPC credentials and
-		// error when not authorized to call this RPC.
-		if !c.isAdmin {
-			if _, ok := rpcLimited[request.Method]; !ok {
-				jsonErr := &btcjson.RPCError{
-					Code:    btcjson.ErrRPCInvalidParams.Code,
-					Message: "limited user not authorized for this method",
+				// only process requests from authenticated clients
+				if !c.authenticated {
+					break out
 				}
-				// Marshal and send response.
-				reply, err := createMarshalledReply(request.ID, nil, jsonErr)
+
+				jsonErr := &btcjson.RPCError{
+					Code:    btcjson.ErrRPCParse.Code,
+					Message: "Failed to parse request: " + err.Error(),
+				}
+				reply, err = createMarshalledReply(btcjson.RpcVersion1, nil, nil, jsonErr)
 				if err != nil {
-					rpcsLog.Errorf("Failed to marshal parse failure "+
-						"reply: %v", err)
+					rpcsLog.Errorf("Failed to marshal reply: %v", err)
 					continue
 				}
 				c.SendMessage(reply, nil)
 				continue
 			}
+
+			if req.Method == "" || req.Params == nil {
+				jsonErr := &btcjson.RPCError{
+					Code:    btcjson.ErrRPCInvalidRequest.Code,
+					Message: "Invalid request: malformed",
+				}
+				reply, err := createMarshalledReply(req.Jsonrpc, req.ID, nil, jsonErr)
+				if err != nil {
+					rpcsLog.Errorf("Failed to marshal reply: %v", err)
+					continue
+				}
+				c.SendMessage(reply, nil)
+				continue
+			}
+
+			// Valid requests with no ID (notifications) must not have a response
+			// per the JSON-RPC spec.
+			if req.ID == nil {
+				if !c.authenticated {
+					break out
+				}
+				continue
+			}
+
+			cmd := parseCmd(&req)
+			if cmd.err != nil {
+				// Only process requests from authenticated clients
+				if !c.authenticated {
+					break out
+				}
+
+				reply, err = createMarshalledReply(cmd.jsonrpc, cmd.id, nil, cmd.err)
+				if err != nil {
+					rpcsLog.Errorf("Failed to marshal reply: %v", err)
+					continue
+				}
+				c.SendMessage(reply, nil)
+				continue
+			}
+
+			rpcsLog.Debugf("Received command <%s> from %s", cmd.method, c.addr)
+
+			// Check auth.  The client is immediately disconnected if the
+			// first request of an unauthentiated websocket client is not
+			// the authenticate request, an authenticate request is received
+			// when the client is already authenticated, or incorrect
+			// authentication credentials are provided in the request.
+			switch authCmd, ok := cmd.cmd.(*btcjson.AuthenticateCmd); {
+			case c.authenticated && ok:
+				rpcsLog.Warnf("Websocket client %s is already authenticated",
+					c.addr)
+				break out
+			case !c.authenticated && !ok:
+				rpcsLog.Warnf("Unauthenticated websocket message " +
+					"received")
+				break out
+			case !c.authenticated:
+				// Check credentials.
+				login := authCmd.Username + ":" + authCmd.Passphrase
+				auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(login))
+				authSha := sha256.Sum256([]byte(auth))
+				cmp := subtle.ConstantTimeCompare(authSha[:], c.server.authsha[:])
+				limitcmp := subtle.ConstantTimeCompare(authSha[:], c.server.limitauthsha[:])
+				if cmp != 1 && limitcmp != 1 {
+					rpcsLog.Warnf("Auth failure.")
+					break out
+				}
+				c.authenticated = true
+				c.isAdmin = cmp == 1
+
+				// Marshal and send response.
+				reply, err = createMarshalledReply(cmd.jsonrpc, cmd.id, nil, nil)
+				if err != nil {
+					rpcsLog.Errorf("Failed to marshal authenticate reply: "+
+						"%v", err.Error())
+					continue
+				}
+				c.SendMessage(reply, nil)
+				continue
+			}
+
+			// Check if the client is using limited RPC credentials and
+			// error when not authorized to call the supplied RPC.
+			if !c.isAdmin {
+				if _, ok := rpcLimited[req.Method]; !ok {
+					jsonErr := &btcjson.RPCError{
+						Code:    btcjson.ErrRPCInvalidParams.Code,
+						Message: "limited user not authorized for this method",
+					}
+					// Marshal and send response.
+					reply, err = createMarshalledReply("", req.ID, nil, jsonErr)
+					if err != nil {
+						rpcsLog.Errorf("Failed to marshal parse failure "+
+							"reply: %v", err)
+						continue
+					}
+					c.SendMessage(reply, nil)
+					continue
+				}
+			}
+
+			// Asynchronously handle the request.  A semaphore is used to
+			// limit the number of concurrent requests currently being
+			// serviced.  If the semaphore can not be acquired, simply wait
+			// until a request finished before reading the next RPC request
+			// from the websocket client.
+			//
+			// This could be a little fancier by timing out and erroring
+			// when it takes too long to service the request, but if that is
+			// done, the read of the next request should not be blocked by
+			// this semaphore, otherwise the next request will be read and
+			// will probably sit here for another few seconds before timing
+			// out as well.  This will cause the total timeout duration for
+			// later requests to be much longer than the check here would
+			// imply.
+			//
+			// If a timeout is added, the semaphore acquiring should be
+			// moved inside of the new goroutine with a select statement
+			// that also reads a time.After channel.  This will unblock the
+			// read of the next request from the websocket client and allow
+			// many requests to be waited on concurrently.
+			c.serviceRequestSem.acquire()
+			go func() {
+				c.serviceRequest(cmd)
+				c.serviceRequestSem.release()
+			}()
 		}
 
-		// Asynchronously handle the request.  A semaphore is used to
-		// limit the number of concurrent requests currently being
-		// serviced.  If the semaphore can not be acquired, simply wait
-		// until a request finished before reading the next RPC request
-		// from the websocket client.
-		//
-		// This could be a little fancier by timing out and erroring
-		// when it takes too long to service the request, but if that is
-		// done, the read of the next request should not be blocked by
-		// this semaphore, otherwise the next request will be read and
-		// will probably sit here for another few seconds before timing
-		// out as well.  This will cause the total timeout duration for
-		// later requests to be much longer than the check here would
-		// imply.
-		//
-		// If a timeout is added, the semaphore acquiring should be
-		// moved inside of the new goroutine with a select statement
-		// that also reads a time.After channel.  This will unblock the
-		// read of the next request from the websocket client and allow
-		// many requests to be waited on concurrently.
-		c.serviceRequestSem.acquire()
-		go func() {
-			c.serviceRequest(cmd)
+		// Process a batched request
+		if batchedRequest {
+			var batchedRequests []interface{}
+			var results []json.RawMessage
+			var batchSize int
+			var reply json.RawMessage
+			c.serviceRequestSem.acquire()
+			err = json.Unmarshal(msg, &batchedRequests)
+			if err != nil {
+				// Only process requests from authenticated clients
+				if !c.authenticated {
+					break out
+				}
+
+				jsonErr := &btcjson.RPCError{
+					Code: btcjson.ErrRPCParse.Code,
+					Message: fmt.Sprintf("Failed to parse request: %v",
+						err),
+				}
+				reply, err = btcjson.MarshalResponse(btcjson.RpcVersion2, nil, nil, jsonErr)
+				if err != nil {
+					rpcsLog.Errorf("Failed to create reply: %v", err)
+				}
+
+				if reply != nil {
+					results = append(results, reply)
+				}
+			}
+
+			if err == nil {
+				// Response with an empty batch error if the batch size is zero
+				if len(batchedRequests) == 0 {
+					if !c.authenticated {
+						break out
+					}
+
+					jsonErr := &btcjson.RPCError{
+						Code:    btcjson.ErrRPCInvalidRequest.Code,
+						Message: "Invalid request: empty batch",
+					}
+					reply, err = btcjson.MarshalResponse(btcjson.RpcVersion2, nil, nil, jsonErr)
+					if err != nil {
+						rpcsLog.Errorf("Failed to marshal reply: %v", err)
+					}
+
+					if reply != nil {
+						results = append(results, reply)
+					}
+				}
+
+				// Process each batch entry individually
+				if len(batchedRequests) > 0 {
+					batchSize = len(batchedRequests)
+					for _, entry := range batchedRequests {
+						var reqBytes []byte
+						reqBytes, err = json.Marshal(entry)
+						if err != nil {
+							// Only process requests from authenticated clients
+							if !c.authenticated {
+								break out
+							}
+
+							jsonErr := &btcjson.RPCError{
+								Code: btcjson.ErrRPCInvalidRequest.Code,
+								Message: fmt.Sprintf("Invalid request: %v",
+									err),
+							}
+							reply, err = btcjson.MarshalResponse(btcjson.RpcVersion2, nil, nil, jsonErr)
+							if err != nil {
+								rpcsLog.Errorf("Failed to create reply: %v", err)
+								continue
+							}
+
+							if reply != nil {
+								results = append(results, reply)
+							}
+							continue
+						}
+
+						var req btcjson.Request
+						err := json.Unmarshal(reqBytes, &req)
+						if err != nil {
+							// Only process requests from authenticated clients
+							if !c.authenticated {
+								break out
+							}
+
+							jsonErr := &btcjson.RPCError{
+								Code: btcjson.ErrRPCInvalidRequest.Code,
+								Message: fmt.Sprintf("Invalid request: %v",
+									err),
+							}
+							reply, err = btcjson.MarshalResponse(btcjson.RpcVersion2, nil, nil, jsonErr)
+							if err != nil {
+								rpcsLog.Errorf("Failed to create reply: %v", err)
+								continue
+							}
+
+							if reply != nil {
+								results = append(results, reply)
+							}
+							continue
+						}
+
+						if req.Method == "" || req.Params == nil {
+							jsonErr := &btcjson.RPCError{
+								Code:    btcjson.ErrRPCInvalidRequest.Code,
+								Message: "Invalid request: malformed",
+							}
+							reply, err := createMarshalledReply(req.Jsonrpc, req.ID, nil, jsonErr)
+							if err != nil {
+								rpcsLog.Errorf("Failed to marshal reply: %v", err)
+								continue
+							}
+
+							if reply != nil {
+								results = append(results, reply)
+							}
+							continue
+						}
+
+						// Valid requests with no ID (notifications) must not have a response
+						// per the JSON-RPC spec.
+						if req.ID == nil {
+							if !c.authenticated {
+								break out
+							}
+							continue
+						}
+
+						cmd := parseCmd(&req)
+						if cmd.err != nil {
+							// Only process requests from authenticated clients
+							if !c.authenticated {
+								break out
+							}
+
+							reply, err = createMarshalledReply(cmd.jsonrpc, cmd.id, nil, cmd.err)
+							if err != nil {
+								rpcsLog.Errorf("Failed to marshal reply: %v", err)
+								continue
+							}
+
+							if reply != nil {
+								results = append(results, reply)
+							}
+							continue
+						}
+
+						rpcsLog.Debugf("Received command <%s> from %s", cmd.method, c.addr)
+
+						// Check auth.  The client is immediately disconnected if the
+						// first request of an unauthentiated websocket client is not
+						// the authenticate request, an authenticate request is received
+						// when the client is already authenticated, or incorrect
+						// authentication credentials are provided in the request.
+						switch authCmd, ok := cmd.cmd.(*btcjson.AuthenticateCmd); {
+						case c.authenticated && ok:
+							rpcsLog.Warnf("Websocket client %s is already authenticated",
+								c.addr)
+							break out
+						case !c.authenticated && !ok:
+							rpcsLog.Warnf("Unauthenticated websocket message " +
+								"received")
+							break out
+						case !c.authenticated:
+							// Check credentials.
+							login := authCmd.Username + ":" + authCmd.Passphrase
+							auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(login))
+							authSha := sha256.Sum256([]byte(auth))
+							cmp := subtle.ConstantTimeCompare(authSha[:], c.server.authsha[:])
+							limitcmp := subtle.ConstantTimeCompare(authSha[:], c.server.limitauthsha[:])
+							if cmp != 1 && limitcmp != 1 {
+								rpcsLog.Warnf("Auth failure.")
+								break out
+							}
+
+							c.authenticated = true
+							c.isAdmin = cmp == 1
+
+							// Marshal and send response.
+							reply, err = createMarshalledReply(cmd.jsonrpc, cmd.id, nil, nil)
+							if err != nil {
+								rpcsLog.Errorf("Failed to marshal authenticate reply: "+
+									"%v", err.Error())
+								continue
+							}
+
+							if reply != nil {
+								results = append(results, reply)
+							}
+							continue
+						}
+
+						// Check if the client is using limited RPC credentials and
+						// error when not authorized to call the supplied RPC.
+						if !c.isAdmin {
+							if _, ok := rpcLimited[req.Method]; !ok {
+								jsonErr := &btcjson.RPCError{
+									Code:    btcjson.ErrRPCInvalidParams.Code,
+									Message: "limited user not authorized for this method",
+								}
+								// Marshal and send response.
+								reply, err = createMarshalledReply(req.Jsonrpc, req.ID, nil, jsonErr)
+								if err != nil {
+									rpcsLog.Errorf("Failed to marshal parse failure "+
+										"reply: %v", err)
+									continue
+								}
+
+								if reply != nil {
+									results = append(results, reply)
+								}
+								continue
+							}
+						}
+
+						// Lookup the websocket extension for the command, if it doesn't
+						// exist fallback to handling the command as a standard command.
+						var resp interface{}
+						wsHandler, ok := wsHandlers[cmd.method]
+						if ok {
+							resp, err = wsHandler(c, cmd.cmd)
+						} else {
+							resp, err = c.server.standardCmdResult(cmd, nil)
+						}
+
+						// Marshal request output.
+						reply, err := createMarshalledReply(cmd.jsonrpc, cmd.id, resp, err)
+						if err != nil {
+							rpcsLog.Errorf("Failed to marshal reply for <%s> "+
+								"command: %v", cmd.method, err)
+							return
+						}
+
+						if reply != nil {
+							results = append(results, reply)
+						}
+					}
+				}
+			}
+
+			// generate reply
+			var payload = []byte{}
+			if batchedRequest && batchSize > 0 {
+				if len(results) > 0 {
+					// Form the batched response json
+					var buffer bytes.Buffer
+					buffer.WriteByte('[')
+					for idx, marshalledReply := range results {
+						if idx == len(results)-1 {
+							buffer.Write(marshalledReply)
+							buffer.WriteByte(']')
+							break
+						}
+						buffer.Write(marshalledReply)
+						buffer.WriteByte(',')
+					}
+					payload = buffer.Bytes()
+				}
+			}
+
+			if !batchedRequest || batchSize == 0 {
+				// Respond with the first results entry for single requests
+				if len(results) > 0 {
+					payload = results[0]
+				}
+			}
+
+			c.SendMessage(payload, nil)
 			c.serviceRequestSem.release()
-		}()
+		}
 	}
 
 	// Ensure the connection is closed.
@@ -1496,7 +1777,7 @@ func (c *wsClient) serviceRequest(r *parsedRPCCmd) {
 	} else {
 		result, err = c.server.standardCmdResult(r, nil)
 	}
-	reply, err := createMarshalledReply(r.id, result, err)
+	reply, err := createMarshalledReply(r.jsonrpc, r.id, result, err)
 	if err != nil {
 		rpcsLog.Errorf("Failed to marshal reply for <%s> "+
 			"command: %v", r.method, err)
@@ -1978,12 +2259,8 @@ func deserializeOutpoints(serializedOuts []btcjson.OutPoint) ([]*wire.OutPoint, 
 }
 
 type rescanKeys struct {
-	fallbacks           map[string]struct{}
-	pubKeyHashes        map[[ripemd160.Size]byte]struct{}
-	scriptHashes        map[[ripemd160.Size]byte]struct{}
-	compressedPubKeys   map[[33]byte]struct{}
-	uncompressedPubKeys map[[65]byte]struct{}
-	unspent             map[wire.OutPoint]struct{}
+	addrs   map[string]struct{}
+	unspent map[wire.OutPoint]struct{}
 }
 
 // unspentSlice returns a slice of currently-unspent outpoints for the rescan
@@ -2020,7 +2297,28 @@ func rescanBlock(wsc *wsClient, lookups *rescanKeys, blk *btcutil.Block) {
 		spentNotified := false
 		recvNotified := false
 
+		// notifySpend is a closure we'll use when we first detect that
+		// a transactions spends an outpoint/script in our filter list.
+		notifySpend := func() error {
+			if txHex == "" {
+				txHex = txHexString(tx.MsgTx())
+			}
+			marshalledJSON, err := newRedeemingTxNotification(
+				txHex, tx.Index(), blk,
+			)
+			if err != nil {
+				return fmt.Errorf("unable to marshal "+
+					"btcjson.RedeeminTxNtfn: %v", err)
+			}
+
+			return wsc.QueueNotification(marshalledJSON)
+		}
+
+		// We'll start by iterating over the transaction's inputs to
+		// determine if it spends an outpoint/script in our filter list.
 		for _, txin := range tx.MsgTx().TxIn {
+			// If it spends an outpoint, we'll dispatch a spend
+			// notification for the transaction.
 			if _, ok := lookups.unspent[txin.PreviousOutPoint]; ok {
 				delete(lookups.unspent, txin.PreviousOutPoint)
 
@@ -2028,21 +2326,58 @@ func rescanBlock(wsc *wsClient, lookups *rescanKeys, blk *btcutil.Block) {
 					continue
 				}
 
-				if txHex == "" {
-					txHex = txHexString(tx.MsgTx())
-				}
-				marshalledJSON, err := newRedeemingTxNotification(txHex, tx.Index(), blk)
-				if err != nil {
-					rpcsLog.Errorf("Failed to marshal redeemingtx notification: %v", err)
-					continue
-				}
+				err := notifySpend()
 
-				err = wsc.QueueNotification(marshalledJSON)
 				// Stop the rescan early if the websocket client
 				// disconnected.
 				if err == ErrClientQuit {
 					return
 				}
+				if err != nil {
+					rpcsLog.Errorf("Unable to notify "+
+						"redeeming transaction %v: %v",
+						tx.Hash(), err)
+					continue
+				}
+
+				spentNotified = true
+			}
+
+			// We'll also recompute the pkScript the input is
+			// attempting to spend to determine whether it is
+			// relevant to us.
+			pkScript, err := txscript.ComputePkScript(
+				txin.SignatureScript, txin.Witness,
+			)
+			if err != nil {
+				continue
+			}
+			addr, err := pkScript.Address(wsc.server.cfg.ChainParams)
+			if err != nil {
+				continue
+			}
+
+			// If it is, we'll also dispatch a spend notification
+			// for this transaction if we haven't already.
+			if _, ok := lookups.addrs[addr.String()]; ok {
+				if spentNotified {
+					continue
+				}
+
+				err := notifySpend()
+
+				// Stop the rescan early if the websocket client
+				// disconnected.
+				if err == ErrClientQuit {
+					return
+				}
+				if err != nil {
+					rpcsLog.Errorf("Unable to notify "+
+						"redeeming transaction %v: %v",
+						tx.Hash(), err)
+					continue
+				}
+
 				spentNotified = true
 			}
 		}
@@ -2052,57 +2387,8 @@ func rescanBlock(wsc *wsClient, lookups *rescanKeys, blk *btcutil.Block) {
 				txout.PkScript, wsc.server.cfg.ChainParams)
 
 			for _, addr := range addrs {
-				switch a := addr.(type) {
-				case *btcutil.AddressPubKeyHash:
-					if _, ok := lookups.pubKeyHashes[*a.Hash160()]; !ok {
-						continue
-					}
-
-				case *btcutil.AddressScriptHash:
-					if _, ok := lookups.scriptHashes[*a.Hash160()]; !ok {
-						continue
-					}
-
-				case *btcutil.AddressPubKey:
-					found := false
-					switch sa := a.ScriptAddress(); len(sa) {
-					case 33: // Compressed
-						var key [33]byte
-						copy(key[:], sa)
-						if _, ok := lookups.compressedPubKeys[key]; ok {
-							found = true
-						}
-
-					case 65: // Uncompressed
-						var key [65]byte
-						copy(key[:], sa)
-						if _, ok := lookups.uncompressedPubKeys[key]; ok {
-							found = true
-						}
-
-					default:
-						rpcsLog.Warnf("Skipping rescanned pubkey of unknown "+
-							"serialized length %d", len(sa))
-						continue
-					}
-
-					// If the transaction output pays to the pubkey of
-					// a rescanned P2PKH address, include it as well.
-					if !found {
-						pkh := a.AddressPubKeyHash()
-						if _, ok := lookups.pubKeyHashes[*pkh.Hash160()]; !ok {
-							continue
-						}
-					}
-
-				default:
-					// A new address type must have been added.  Encode as a
-					// payment address string and check the fallback map.
-					addrStr := addr.EncodeAddress()
-					_, ok := lookups.fallbacks[addrStr]
-					if !ok {
-						continue
-					}
+				if _, ok := lookups.addrs[addr.String()]; !ok {
+					continue
 				}
 
 				outpoint := wire.OutPoint{
@@ -2121,7 +2407,7 @@ func rescanBlock(wsc *wsClient, lookups *rescanKeys, blk *btcutil.Block) {
 				ntfn := btcjson.NewRecvTxNtfn(txHex,
 					blockDetails(blk, tx.Index()))
 
-				marshalledJSON, err := btcjson.MarshalCmd(nil, ntfn)
+				marshalledJSON, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, ntfn)
 				if err != nil {
 					rpcsLog.Errorf("Failed to marshal recvtx notification: %v", err)
 					return
@@ -2317,132 +2603,20 @@ func descendantBlock(prevHash *chainhash.Hash, curBlock *btcutil.Block) error {
 	return nil
 }
 
-// handleRescan implements the rescan command extension for websocket
-// connections.
-//
-// NOTE: This does not smartly handle reorgs, and fixing requires database
-// changes (for safe, concurrent access to full block ranges, and support
-// for other chains than the best chain).  It will, however, detect whether
-// a reorg removed a block that was previously processed, and result in the
-// handler erroring.  Clients must handle this by finding a block still in
-// the chain (perhaps from a rescanprogress notification) to resume their
-// rescan.
-func handleRescan(wsc *wsClient, icmd interface{}) (interface{}, error) {
-	cmd, ok := icmd.(*btcjson.RescanCmd)
-	if !ok {
-		return nil, btcjson.ErrRPCInternal
-	}
-
-	outpoints := make([]*wire.OutPoint, 0, len(cmd.OutPoints))
-	for i := range cmd.OutPoints {
-		cmdOutpoint := &cmd.OutPoints[i]
-		blockHash, err := chainhash.NewHashFromStr(cmdOutpoint.Hash)
-		if err != nil {
-			return nil, rpcDecodeHexError(cmdOutpoint.Hash)
-		}
-		outpoint := wire.NewOutPoint(blockHash, cmdOutpoint.Index)
-		outpoints = append(outpoints, outpoint)
-	}
-
-	numAddrs := len(cmd.Addresses)
-	if numAddrs == 1 {
-		rpcsLog.Info("Beginning rescan for 1 address")
-	} else {
-		rpcsLog.Infof("Beginning rescan for %d addresses", numAddrs)
-	}
-
-	// Build lookup maps.
-	lookups := rescanKeys{
-		fallbacks:           map[string]struct{}{},
-		pubKeyHashes:        map[[ripemd160.Size]byte]struct{}{},
-		scriptHashes:        map[[ripemd160.Size]byte]struct{}{},
-		compressedPubKeys:   map[[33]byte]struct{}{},
-		uncompressedPubKeys: map[[65]byte]struct{}{},
-		unspent:             map[wire.OutPoint]struct{}{},
-	}
-	var compressedPubkey [33]byte
-	var uncompressedPubkey [65]byte
-	params := wsc.server.cfg.ChainParams
-	for _, addrStr := range cmd.Addresses {
-		addr, err := btcutil.DecodeAddress(addrStr, params)
-		if err != nil {
-			jsonErr := btcjson.RPCError{
-				Code: btcjson.ErrRPCInvalidAddressOrKey,
-				Message: "Rescan address " + addrStr + ": " +
-					err.Error(),
-			}
-			return nil, &jsonErr
-		}
-		switch a := addr.(type) {
-		case *btcutil.AddressPubKeyHash:
-			lookups.pubKeyHashes[*a.Hash160()] = struct{}{}
-
-		case *btcutil.AddressScriptHash:
-			lookups.scriptHashes[*a.Hash160()] = struct{}{}
-
-		case *btcutil.AddressPubKey:
-			pubkeyBytes := a.ScriptAddress()
-			switch len(pubkeyBytes) {
-			case 33: // Compressed
-				copy(compressedPubkey[:], pubkeyBytes)
-				lookups.compressedPubKeys[compressedPubkey] = struct{}{}
-
-			case 65: // Uncompressed
-				copy(uncompressedPubkey[:], pubkeyBytes)
-				lookups.uncompressedPubKeys[uncompressedPubkey] = struct{}{}
-
-			default:
-				jsonErr := btcjson.RPCError{
-					Code:    btcjson.ErrRPCInvalidAddressOrKey,
-					Message: "Pubkey " + addrStr + " is of unknown length",
-				}
-				return nil, &jsonErr
-			}
-
-		default:
-			// A new address type must have been added.  Use encoded
-			// payment address string as a fallback until a fast path
-			// is added.
-			lookups.fallbacks[addrStr] = struct{}{}
-		}
-	}
-	for _, outpoint := range outpoints {
-		lookups.unspent[*outpoint] = struct{}{}
-	}
-
-	chain := wsc.server.cfg.Chain
-
-	minBlockHash, err := chainhash.NewHashFromStr(cmd.BeginBlock)
-	if err != nil {
-		return nil, rpcDecodeHexError(cmd.BeginBlock)
-	}
-	minBlock, err := chain.BlockHeightByHash(minBlockHash)
-	if err != nil {
-		return nil, &btcjson.RPCError{
-			Code:    btcjson.ErrRPCBlockNotFound,
-			Message: "Error getting block: " + err.Error(),
-		}
-	}
-
-	maxBlock := int32(math.MaxInt32)
-	if cmd.EndBlock != nil {
-		maxBlockHash, err := chainhash.NewHashFromStr(*cmd.EndBlock)
-		if err != nil {
-			return nil, rpcDecodeHexError(*cmd.EndBlock)
-		}
-		maxBlock, err = chain.BlockHeightByHash(maxBlockHash)
-		if err != nil {
-			return nil, &btcjson.RPCError{
-				Code:    btcjson.ErrRPCBlockNotFound,
-				Message: "Error getting block: " + err.Error(),
-			}
-		}
-	}
+// scanBlockChunks executes a rescan in chunked stages. We do this to limit the
+// amount of memory that we'll allocate to a given rescan. Every so often,
+// we'll send back a rescan progress notification to the websockets client. The
+// final block and block hash that we've scanned will be returned.
+func scanBlockChunks(wsc *wsClient, cmd *btcjson.RescanCmd, lookups *rescanKeys, minBlock,
+	maxBlock int32, chain *blockchain.BlockChain) (
+	*btcutil.Block, *chainhash.Hash, error) {
 
 	// lastBlock and lastBlockHash track the previously-rescanned block.
 	// They equal nil when no previous blocks have been rescanned.
-	var lastBlock *btcutil.Block
-	var lastBlockHash *chainhash.Hash
+	var (
+		lastBlock     *btcutil.Block
+		lastBlockHash *chainhash.Hash
+	)
 
 	// A ticker is created to wait at least 10 seconds before notifying the
 	// websocket client of the current progress completed by the rescan.
@@ -2465,7 +2639,7 @@ fetchRange:
 		hashList, err := chain.HeightRange(minBlock, maxLoopBlock)
 		if err != nil {
 			rpcsLog.Errorf("Error looking up block range: %v", err)
-			return nil, &btcjson.RPCError{
+			return nil, nil, &btcjson.RPCError{
 				Code:    btcjson.ErrRPCDatabase,
 				Message: "Database error: " + err.Error(),
 			}
@@ -2504,7 +2678,7 @@ fetchRange:
 			if err != nil {
 				rpcsLog.Errorf("Error fetching best block "+
 					"hash: %v", err)
-				return nil, &btcjson.RPCError{
+				return nil, nil, &btcjson.RPCError{
 					Code: btcjson.ErrRPCDatabase,
 					Message: "Database error: " +
 						err.Error(),
@@ -2527,7 +2701,7 @@ fetchRange:
 
 					rpcsLog.Errorf("Error looking up "+
 						"block: %v", err)
-					return nil, &btcjson.RPCError{
+					return nil, nil, &btcjson.RPCError{
 						Code: btcjson.ErrRPCDatabase,
 						Message: "Database error: " +
 							err.Error(),
@@ -2540,7 +2714,7 @@ fetchRange:
 					rpcsLog.Errorf("Stopping rescan for "+
 						"reorged block %v",
 						cmd.EndBlock)
-					return nil, &ErrRescanReorg
+					return nil, nil, &ErrRescanReorg
 				}
 
 				// If the lookup for the previously valid block
@@ -2554,10 +2728,11 @@ fetchRange:
 				// before the range was evaluated, as it must be
 				// reevaluated for the new hashList.
 				minBlock += int32(i)
-				hashList, err = recoverFromReorg(chain,
-					minBlock, maxBlock, lastBlockHash)
+				hashList, err = recoverFromReorg(
+					chain, minBlock, maxBlock, lastBlockHash,
+				)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				if len(hashList) == 0 {
 					break fetchRange
@@ -2569,7 +2744,7 @@ fetchRange:
 				// as the last block from the old hashList.
 				jsonErr := descendantBlock(lastBlockHash, blk)
 				if jsonErr != nil {
-					return nil, jsonErr
+					return nil, nil, jsonErr
 				}
 			}
 
@@ -2579,9 +2754,9 @@ fetchRange:
 			case <-wsc.quit:
 				rpcsLog.Debugf("Stopped rescan at height %v "+
 					"for disconnected client", blk.Height())
-				return nil, nil
+				return nil, nil, nil
 			default:
-				rescanBlock(wsc, &lookups, blk)
+				rescanBlock(wsc, lookups, blk)
 				lastBlock = blk
 				lastBlockHash = blk.Hash()
 			}
@@ -2595,9 +2770,11 @@ fetchRange:
 				continue
 			}
 
-			n := btcjson.NewRescanProgressNtfn(hashList[i].String(),
-				blk.Height(), blk.MsgBlock().Header.Timestamp.Unix())
-			mn, err := btcjson.MarshalCmd(nil, n)
+			n := btcjson.NewRescanProgressNtfn(
+				hashList[i].String(), blk.Height(),
+				blk.MsgBlock().Header.Timestamp.Unix(),
+			)
+			mn, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, n)
 			if err != nil {
 				rpcsLog.Errorf("Failed to marshal rescan "+
 					"progress notification: %v", err)
@@ -2608,11 +2785,127 @@ fetchRange:
 				// Finished if the client disconnected.
 				rpcsLog.Debugf("Stopped rescan at height %v "+
 					"for disconnected client", blk.Height())
-				return nil, nil
+				return nil, nil, nil
 			}
 		}
 
 		minBlock += int32(len(hashList))
+	}
+
+	return lastBlock, lastBlockHash, nil
+}
+
+// handleRescan implements the rescan command extension for websocket
+// connections.
+//
+// NOTE: This does not smartly handle reorgs, and fixing requires database
+// changes (for safe, concurrent access to full block ranges, and support
+// for other chains than the best chain).  It will, however, detect whether
+// a reorg removed a block that was previously processed, and result in the
+// handler erroring.  Clients must handle this by finding a block still in
+// the chain (perhaps from a rescanprogress notification) to resume their
+// rescan.
+func handleRescan(wsc *wsClient, icmd interface{}) (interface{}, error) {
+	cmd, ok := icmd.(*btcjson.RescanCmd)
+	if !ok {
+		return nil, btcjson.ErrRPCInternal
+	}
+
+	outpoints := make([]*wire.OutPoint, 0, len(cmd.OutPoints))
+	for i := range cmd.OutPoints {
+		cmdOutpoint := &cmd.OutPoints[i]
+		blockHash, err := chainhash.NewHashFromStr(cmdOutpoint.Hash)
+		if err != nil {
+			return nil, rpcDecodeHexError(cmdOutpoint.Hash)
+		}
+		outpoint := wire.NewOutPoint(blockHash, cmdOutpoint.Index)
+		outpoints = append(outpoints, outpoint)
+	}
+
+	numAddrs := len(cmd.Addresses)
+	if numAddrs == 1 {
+		rpcsLog.Info("Beginning rescan for 1 address")
+	} else {
+		rpcsLog.Infof("Beginning rescan for %d addresses", numAddrs)
+	}
+
+	// Build lookup maps.
+	lookups := rescanKeys{
+		addrs:   map[string]struct{}{},
+		unspent: map[wire.OutPoint]struct{}{},
+	}
+	for _, addrStr := range cmd.Addresses {
+		lookups.addrs[addrStr] = struct{}{}
+	}
+	for _, outpoint := range outpoints {
+		lookups.unspent[*outpoint] = struct{}{}
+	}
+
+	chain := wsc.server.cfg.Chain
+
+	minBlockHash, err := chainhash.NewHashFromStr(cmd.BeginBlock)
+	if err != nil {
+		return nil, rpcDecodeHexError(cmd.BeginBlock)
+	}
+	minBlock, err := chain.BlockHeightByHash(minBlockHash)
+	if err != nil {
+		return nil, &btcjson.RPCError{
+			Code:    btcjson.ErrRPCBlockNotFound,
+			Message: "Error getting block: " + err.Error(),
+		}
+	}
+
+	maxBlock := int32(math.MaxInt32)
+	if cmd.EndBlock != nil {
+		maxBlockHash, err := chainhash.NewHashFromStr(*cmd.EndBlock)
+		if err != nil {
+			return nil, rpcDecodeHexError(*cmd.EndBlock)
+		}
+		maxBlock, err = chain.BlockHeightByHash(maxBlockHash)
+		if err != nil {
+			return nil, &btcjson.RPCError{
+				Code:    btcjson.ErrRPCBlockNotFound,
+				Message: "Error getting block: " + err.Error(),
+			}
+		}
+	}
+
+	var (
+		lastBlock     *btcutil.Block
+		lastBlockHash *chainhash.Hash
+	)
+	if len(lookups.addrs) != 0 || len(lookups.unspent) != 0 {
+		// With all the arguments parsed, we'll execute our chunked rescan
+		// which will notify the clients of any address deposits or output
+		// spends.
+		lastBlock, lastBlockHash, err = scanBlockChunks(
+			wsc, cmd, &lookups, minBlock, maxBlock, chain,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// If the last block is nil, then this means that the client
+		// disconnected mid-rescan. As a result, we don't need to send
+		// anything back to them.
+		if lastBlock == nil {
+			return nil, nil
+		}
+	} else {
+		rpcsLog.Infof("Skipping rescan as client has no addrs/utxos")
+
+		// If we didn't actually do a rescan, then we'll give the
+		// client our best known block within the final rescan finished
+		// notification.
+		chainTip := chain.BestSnapshot()
+		lastBlockHash = &chainTip.Hash
+		lastBlock, err = chain.BlockByHash(lastBlockHash)
+		if err != nil {
+			return nil, &btcjson.RPCError{
+				Code:    btcjson.ErrRPCBlockNotFound,
+				Message: "Error getting block: " + err.Error(),
+			}
+		}
 	}
 
 	// Notify websocket client of the finished rescan.  Due to how btcd
@@ -2622,10 +2915,11 @@ fetchRange:
 	// received before the rescan RPC returns.  Therefore, another method
 	// is needed to safely inform clients that all rescan notifications have
 	// been sent.
-	n := btcjson.NewRescanFinishedNtfn(lastBlockHash.String(),
-		lastBlock.Height(),
-		lastBlock.MsgBlock().Header.Timestamp.Unix())
-	if mn, err := btcjson.MarshalCmd(nil, n); err != nil {
+	n := btcjson.NewRescanFinishedNtfn(
+		lastBlockHash.String(), lastBlock.Height(),
+		lastBlock.MsgBlock().Header.Timestamp.Unix(),
+	)
+	if mn, err := btcjson.MarshalCmd(btcjson.RpcVersion1, nil, n); err != nil {
 		rpcsLog.Errorf("Failed to marshal rescan finished "+
 			"notification: %v", err)
 	} else {

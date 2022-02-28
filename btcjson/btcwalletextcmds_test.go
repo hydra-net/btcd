@@ -58,12 +58,12 @@ func TestBtcWalletExtCmds(t *testing.T) {
 		{
 			name: "importaddress",
 			newCmd: func() (interface{}, error) {
-				return btcjson.NewCmd("importaddress", "1Address")
+				return btcjson.NewCmd("importaddress", "1Address", "")
 			},
 			staticCmd: func() interface{} {
-				return btcjson.NewImportAddressCmd("1Address", nil)
+				return btcjson.NewImportAddressCmd("1Address", "", nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"importaddress","params":["1Address"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"importaddress","params":["1Address",""],"id":1}`,
 			unmarshalled: &btcjson.ImportAddressCmd{
 				Address: "1Address",
 				Rescan:  btcjson.Bool(true),
@@ -72,14 +72,15 @@ func TestBtcWalletExtCmds(t *testing.T) {
 		{
 			name: "importaddress optional",
 			newCmd: func() (interface{}, error) {
-				return btcjson.NewCmd("importaddress", "1Address", false)
+				return btcjson.NewCmd("importaddress", "1Address", "acct", false)
 			},
 			staticCmd: func() interface{} {
-				return btcjson.NewImportAddressCmd("1Address", btcjson.Bool(false))
+				return btcjson.NewImportAddressCmd("1Address", "acct", btcjson.Bool(false))
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"importaddress","params":["1Address",false],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"importaddress","params":["1Address","acct",false],"id":1}`,
 			unmarshalled: &btcjson.ImportAddressCmd{
 				Address: "1Address",
+				Account: "acct",
 				Rescan:  btcjson.Bool(false),
 			},
 		},
@@ -144,7 +145,7 @@ func TestBtcWalletExtCmds(t *testing.T) {
 	for i, test := range tests {
 		// Marshal the command as created by the new static command
 		// creation function.
-		marshalled, err := btcjson.MarshalCmd(testID, test.staticCmd())
+		marshalled, err := btcjson.MarshalCmd(btcjson.RpcVersion1, testID, test.staticCmd())
 		if err != nil {
 			t.Errorf("MarshalCmd #%d (%s) unexpected error: %v", i,
 				test.name, err)
@@ -168,7 +169,7 @@ func TestBtcWalletExtCmds(t *testing.T) {
 
 		// Marshal the command as created by the generic new command
 		// creation function.
-		marshalled, err = btcjson.MarshalCmd(testID, cmd)
+		marshalled, err = btcjson.MarshalCmd(btcjson.RpcVersion1, testID, cmd)
 		if err != nil {
 			t.Errorf("MarshalCmd #%d (%s) unexpected error: %v", i,
 				test.name, err)

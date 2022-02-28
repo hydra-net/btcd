@@ -125,7 +125,7 @@ func newMemWallet(net *chaincfg.Params, harnessID uint32) (*memWallet, error) {
 
 	// The first child key from the hd root is reserved as the coinbase
 	// generation address.
-	coinbaseChild, err := hdRoot.Child(0)
+	coinbaseChild, err := hdRoot.Derive(0)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +337,7 @@ func (m *memWallet) unwindBlock(update *chainUpdate) {
 func (m *memWallet) newAddress() (btcutil.Address, error) {
 	index := m.hdIndex
 
-	childKey, err := m.hdRoot.Child(index)
+	childKey, err := m.hdRoot.Derive(index)
 	if err != nil {
 		return nil, err
 	}
@@ -460,6 +460,12 @@ func (m *memWallet) SendOutputs(outputs []*wire.TxOut,
 	return m.rpc.SendRawTransaction(tx, true)
 }
 
+func (m *memWallet) SendOutputsLW(outputs []*wire.TxOut,
+	feeRate btcutil.Amount) (*wire.MsgTx, error) {
+
+	return m.CreateTransaction(outputs, feeRate, true)
+}
+
 // SendOutputsWithoutChange creates and sends a transaction that pays to the
 // specified outputs while observing the passed fee rate and ignoring a change
 // output. The passed fee rate should be expressed in sat/b.
@@ -473,6 +479,13 @@ func (m *memWallet) SendOutputsWithoutChange(outputs []*wire.TxOut,
 
 	return m.rpc.SendRawTransaction(tx, true)
 }
+
+func (m *memWallet) SendOutputsWithoutChangeLW(outputs []*wire.TxOut,
+	feeRate btcutil.Amount) (*wire.MsgTx, error) {
+
+	return m.CreateTransaction(outputs, feeRate, false)
+}
+
 
 // CreateTransaction returns a fully signed transaction paying to the specified
 // outputs while observing the desired fee rate. The passed fee rate should be
@@ -509,7 +522,7 @@ func (m *memWallet) CreateTransaction(outputs []*wire.TxOut,
 		outPoint := txIn.PreviousOutPoint
 		utxo := m.utxos[outPoint]
 
-		extendedKey, err := m.hdRoot.Child(utxo.keyIndex)
+		extendedKey, err := m.hdRoot.Derive(utxo.keyIndex)
 		if err != nil {
 			return nil, err
 		}

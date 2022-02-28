@@ -41,6 +41,21 @@ type BlockHeader struct {
 	Nonce uint32
 }
 
+type LightWalletHeader struct {
+	// Hash of current block header in the block chain.
+	BlockHash chainhash.Hash
+
+	// Hash of the previous block header in the block chain.
+	PrevBlock chainhash.Hash
+
+	// Height for the block.
+	Height uint32
+
+	// Time the block was created.  This is, unfortunately, encoded as a
+	// uint32 on the wire and therefore is limited to 2106.
+	Timestamp time.Time
+}
+
 // blockHeaderLen is a constant that represents the number of bytes for a block
 // header.
 const blockHeaderLen = 80
@@ -128,4 +143,29 @@ func writeBlockHeader(w io.Writer, pver uint32, bh *BlockHeader) error {
 	sec := uint32(bh.Timestamp.Unix())
 	return writeElements(w, bh.Version, &bh.PrevBlock, &bh.MerkleRoot,
 		sec, bh.Bits, bh.Nonce)
+}
+
+// Deserialize decodes a block header from r into the receiver using a
+// LW DEX suitable format.
+func (h *LightWalletHeader) DeserializeLightHeader(r io.Reader) error {
+	// At the current time, there is no difference between the wire encoding
+	// at protocol version 0 and the stable long-term storage format.  As
+	// a result, make use of readBlockHeader.
+	return readLightHeader(r, 0, h)
+}
+
+func (h *LightWalletHeader) BlockHeader() *BlockHeader {
+	return &BlockHeader{
+		Version:    int32(h.Height),
+		PrevBlock:  h.PrevBlock,
+		MerkleRoot: h.BlockHash,
+		Timestamp:  h.Timestamp,
+		Bits:       0,
+		Nonce:      0,
+	}
+}
+
+// readLightHeader reads a block header from r. in LW DeX format.
+func readLightHeader(r io.Reader, pver uint32, bh *LightWalletHeader) error {
+	return readElements(r, &bh.BlockHash, &bh.PrevBlock, &bh.Height, (*uint32Time)(&bh.Timestamp))
 }

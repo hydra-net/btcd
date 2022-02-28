@@ -33,6 +33,13 @@ func RawTxInWitnessSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 		return nil, err
 	}
 
+	fmt.Println("sigHash", hash)
+	fmt.Println("witnessScript", parsedScript)
+	fmt.Println("hashCache", sigHashes)
+	fmt.Println("txscript.SigHashAll", hashType)
+	fmt.Println("ourCommitTx", tx.TxHash().String())
+	fmt.Println("channelValue", amt)
+
 	signature, err := key.Sign(hash)
 	if err != nil {
 		return nil, fmt.Errorf("cannot sign tx input: %s", err)
