@@ -16,7 +16,7 @@ type Client struct {
 	// Conn is the underlying connection.
 	conn *grpc.ClientConn
 
-	lwClient 		lightwalletrpc.LightWalletServiceClient
+	lwClient 	lightwalletrpc.LightWalletServiceClient
 	keyChainClient 	lightwalletrpc.KeychainServiceClient
 }
 
