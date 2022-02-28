@@ -1256,7 +1256,6 @@ func newHashFromStr(hexStr string) *chainhash.Hash {
 
 func init() {
 	// Register all default networks when the package is initialized.
-	mustRegister(&BitcoinLWParams)
-	mustRegister(&BitcoinLWTestNetParams)
-	mustRegister(&BitcoinLWRegTestParams)
+	mustRegister(&XsncoinLWParams)
+	mustRegister(&XsncoinLWRegTestParams)
 }
