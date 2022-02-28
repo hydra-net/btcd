@@ -51,6 +51,6 @@ func (c *Client) Disconnect() {
 // unaryInterceptor is an example unary interceptor.
 func interceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 
-	ctx = metadata.AppendToOutgoingContext(ctx, "assetid", "0")
+	ctx = metadata.AppendToOutgoingContext(ctx, "assetid", "2")
 	return invoker(ctx, method, req, reply, cc, opts...)
 }

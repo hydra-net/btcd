@@ -36,6 +36,10 @@ var (
 	// 2^224 - 1.
 	testNet3PowLimit = new(big.Int).Sub(new(big.Int).Lsh(bigOne, 224), bigOne)
 
+	// testNet4PowLimit is the highest proof of work value a Litecoin block
+        // can have for the test network (version 4).
+        testNet4PowLimit, _ = new(big.Int).SetString("0x0fffff000000000000000000000000000000000000000000000000000000", 0)
+
 	// simNetPowLimit is the highest proof of work value a Bitcoin block
 	// can have for the simulation test network.  It is the value 2^255 - 1.
 	simNetPowLimit = new(big.Int).Sub(new(big.Int).Lsh(bigOne, 255), bigOne)
@@ -669,6 +673,88 @@ var LitecoinLWParams = Params{
 	HDCoinType: 1,
 }
 
+// TestNet4Params defines the network parameters for the test Litecoin network
+// (version 4).  Not to be confused with the regression test network, this
+// network is sometimes simply called "testnet".
+var LitecoinLWTestNetParams = Params{
+	Name:        "testnet4",
+	Net:         wire.BitcoinNet(ltcdwire.TestNet4),
+	DefaultPort: "12345",
+	DNSSeeds: []DNSSeed{},
+
+	// Chain parameters
+	GenesisBlock:             &testNet4GenesisBlock,
+	GenesisHash:              &testNet4GenesisHash,
+	PowLimit:                 testNet4PowLimit,
+	PowLimitBits:             504365055,
+	BIP0034Height:            76,
+	BIP0065Height:            76,
+	BIP0066Height:            76,
+	CoinbaseMaturity:         100,
+	SubsidyReductionInterval: 840000,
+	TargetTimespan:           (time.Hour * 24 * 3) + (time.Hour * 12), // 3.5 days
+	TargetTimePerBlock:       (time.Minute * 2) + (time.Second * 30),  // 2.5 minutes
+	RetargetAdjustmentFactor: 4,                                       // 25% less, 400% more
+	ReduceMinDifficulty:      true,
+	MinDiffReductionTime:     time.Minute * 5, // TargetTimePerBlock * 2
+	GenerateSupported:        false,
+
+	// Checkpoints ordered from oldest to newest.
+	Checkpoints: []Checkpoint{
+		{26115, newHashFromStr("817d5b509e91ab5e439652eee2f59271bbc7ba85021d720cdb6da6565b43c14f")},
+		{43928, newHashFromStr("7d86614c153f5ef6ad878483118ae523e248cd0dd0345330cb148e812493cbb4")},
+		{69296, newHashFromStr("66c2f58da3cfd282093b55eb09c1f5287d7a18801a8ff441830e67e8771010df")},
+		{99949, newHashFromStr("8dd471cb5aecf5ead91e7e4b1e932c79a0763060f8d93671b6801d115bfc6cde")},
+		{159256, newHashFromStr("ab5b0b9968842f5414804591119d6db829af606864b1959a25d6f5c114afb2b7")},
+	},
+
+	// Consensus rule change deployments.
+	//
+	// The miner confirmation window is defined as:
+	//   target proof of work timespan / target proof of work spacing
+	RuleChangeActivationThreshold: 1512, // 75% of MinerConfirmationWindow
+	MinerConfirmationWindow:       2016,
+	Deployments: [DefinedDeployments]ConsensusDeployment{
+		DeploymentTestDummy: {
+			BitNumber:  28,
+			StartTime:  1199145601, // January 1, 2008 UTC
+			ExpireTime: 1230767999, // December 31, 2008 UTC
+		},
+		DeploymentCSV: {
+			BitNumber:  0,
+			StartTime:  1483228800, // January 1, 2017
+			ExpireTime: 1517356801, // January 31st, 2018
+		},
+		DeploymentSegwit: {
+			BitNumber:  1,
+			StartTime:  1483228800, // January 1, 2017
+			ExpireTime: 1517356801, // January 31st, 2018
+		},
+	},
+
+	// Mempool parameters
+	RelayNonStdTxs: true,
+
+	// Human-readable part for Bech32 encoded segwit addresses, as defined in
+	// BIP 173.
+	Bech32HRPSegwit: "tltc", // always tltc for test net
+
+	// Address encoding magics
+	PubKeyHashAddrID:        0x6f, // starts with m or n
+	ScriptHashAddrID:        0x3a, // starts with Q
+	WitnessPubKeyHashAddrID: 0x52, // starts with QW
+	WitnessScriptHashAddrID: 0x31, // starts with T7n
+	PrivateKeyID:            0xef, // starts with 9 (uncompressed) or c (compressed)
+
+	// BIP32 hierarchical deterministic extended key magics
+	HDPrivateKeyID: [4]byte{0x04, 0x35, 0x83, 0x94}, // starts with tprv
+	HDPublicKeyID:  [4]byte{0x04, 0x35, 0x87, 0xcf}, // starts with tpub
+
+	// BIP44 coin type used in the hierarchical deterministic path for
+	// address generation.
+	HDCoinType: 1,
+}
+
 // LightWalletParams defines the network parameters for the LightWallet Client network.
 var LitecoinLWRegTestParams = Params{
 	Name:        "regtest",
@@ -1256,7 +1342,7 @@ func newHashFromStr(hexStr string) *chainhash.Hash {
 
 func init() {
 	// Register all default networks when the package is initialized.
-	mustRegister(&BitcoinLWParams)
-	mustRegister(&BitcoinLWTestNetParams)
-	mustRegister(&BitcoinLWRegTestParams)
+	mustRegister(&LitecoinLWParams)
+	mustRegister(&LitecoinLWTestNetParams)
+	mustRegister(&LitecoinLWRegTestParams)
 }
